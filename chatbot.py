@@ -87,16 +87,16 @@ class Config:
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Oi%20meu%20amor%20tudo%20bem.mp3"
     AUDIO_DURATION = 7
-    IMG_PROFILE = "https://i.ibb.co/ks5CNrDn/IMG-9256.jpg"
+    IMG_PROFILE = "https://i.ibb.co/vxnTYm0Q/BY-Admiregirls-su-Admiregirls-su-156.jpg"
     IMG_GALLERY = [
-        "https://i.ibb.co/zhNZL4FF/IMG-9198.jpg",
-        "https://i.ibb.co/Y4B7CbXf/IMG-9202.jpg",
-        "https://i.ibb.co/Fqf0gPPq/IMG-9199.jpg"
+        "https://i.ibb.co/C3mDFyJV/BY-Admiregirls-su-Admiregirls-su-036.jpg",
+        "https://i.ibb.co/sv2kdLLC/BY-Admiregirls-su-Admiregirls-su-324.jpg",
+        "https://i.ibb.co/BHY8ZZG7/BY-Admiregirls-su-Admiregirls-su-033.jpg"
     ]
     IMG_HOME_PREVIEWS = [
-        "https://i.ibb.co/k2MJg4XC/Save-ClipApp-412457343-378531441368078-7870326395110089440-n.jpg",
-        "https://i.ibb.co/MxqKBk1X/Save-ClipApp-481825770-18486618637042608-2702272791254832108-n.jpg",
-        "https://i.ibb.co/F4CkkYTL/Save-ClipApp-461241348-1219420546053727-2357827070610318448-n.jpg"
+        "https://i.ibb.co/BHY8ZZG7/BY-Admiregirls-su-Admiregirls-su-033.jpg",
+        "https://i.ibb.co/Q5cHPBd/BY-Admiregirls-su-Admiregirls-su-183.jpg",
+        "https://i.ibb.co/xq6frp0h/BY-Admiregirls-su-Admiregirls-su-141.jpg"
     ]
     LOGO_URL = "https://i.ibb.co/LX7x3tcB/Logo-Golden-Pepper-Letreiro-1.png"
 
@@ -1681,6 +1681,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
