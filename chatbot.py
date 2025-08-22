@@ -18,7 +18,7 @@ from functools import lru_cache
 # CONFIGURAÇÃO INICIAL DO STREAMLIT
 # ======================
 st.set_page_config(
-    page_title="Paloma Premium",
+    page_title="Mylle Alves Premium",
     page_icon="💋",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -78,7 +78,7 @@ class Config:
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
     VIP_LINK = "https://exemplo.com/vip"
     CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
-    CHECKOUT_PREMIUM = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
+    CHECKOUT_MOLHADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
     CHECKOUT_EXTREME = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
     CHECKOUT_VIP_1MES = "https://checkout.exemplo.com/vip-1mes"
     CHECKOUT_VIP_3MESES = "https://checkout.exemplo.com/vip-3meses"
@@ -708,7 +708,7 @@ class UiService:
             st.markdown("""
             <div class="sidebar-header">
                 <img src="{profile_img}" alt="Paloma">
-                <h3 style="color: #ff66b3; margin-top: 10px;">Paloma Premium</h3>
+                <h3 style="color: #ff66b3; margin-top: 10px;">Mylle Alves Premium</h3>
             </div>
             """.format(profile_img=Config.IMG_PROFILE), unsafe_allow_html=True)
             
@@ -762,7 +762,7 @@ class UiService:
             st.markdown("---")
             st.markdown("""
             <div style="text-align: center; font-size: 0.7em; color: #888;">
-                <p>© 2024 Paloma Premium</p>
+                <p>© 2024 Mylle Alves Premium</p>
                 <p>Conteúdo para maiores de 18 anos</p>
             </div>
             """, unsafe_allow_html=True)
@@ -967,7 +967,7 @@ class NewPages:
 
         st.markdown("""
         <div class="hero-banner">
-            <h1 style="color: #ff66b3;">Paloma Premium</h1>
+            <h1 style="color: #ff66b3;">Mylle alves Premium</h1>
             <p>Conteúdo exclusivo que você não encontra em nenhum outro lugar...</p>
             <div style="margin-top: 20px;">
                 <a href="#vip" style="
@@ -1032,7 +1032,7 @@ class NewPages:
             .package-TARADINHA{
                 border-color: #ff66b3;
             }
-            .package-premium {
+            .package-MOLHADINHA {
                 border-color: #9400d3;
             }
             .package-extreme {
@@ -1116,7 +1116,7 @@ class NewPages:
         <div class="package-box package-TARADINHA">
             <div class="package-header">
                 <h3 style="color: #ff66b3;">TARADINHA</h3>
-                <div class="package-price" style="color: #ff66b3;">R$ 49,90</div>
+                <div class="package-price" style="color: #ff66b3;">R$ 19,99</div>
                 <small>para iniciantes</small>
             </div>
             <ul class="package-benefits">
@@ -1147,16 +1147,16 @@ class NewPages:
         """.format(checkout_TARADINHA=Config.CHECKOUT_TARADINHA), unsafe_allow_html=True)
 
         st.markdown("""
-        <div class="package-box package-premium">
+        <div class="package-box package-MOLHADINHA">
             <div class="package-badge">POPULAR</div>
             <div class="package-header">
-                <h3 style="color: #9400d3;">PREMIUM</h3>
+                <h3 style="color: #9400d3;">MOLHADINHA</h3>
                 <div class="package-price" style="color: #9400d3;">R$ 99,90</div>
                 <small>experiência completa</small>
             </div>
             <ul class="package-benefits">
-                <li>20 fotos exclusivas</li>
-                <li>5 vídeos premium</li>
+                <li>25 fotos exclusivas</li>
+                <li>25 vídeos premium</li>
                 <li>Fotos Peito</li>
                 <li>Fotos Bunda</li>
                 <li>Fotos Buceta</li>
@@ -1164,7 +1164,7 @@ class NewPages:
                 <li>Videos Masturbando</li>
             </ul>
             <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_premium}" target="_blank" rel="noopener noreferrer" style="
+                <a href="{checkout_MOLHADINHA}" target="_blank" rel="noopener noreferrer" style="
                     display: block;
                     background: linear-gradient(45deg, #9400d3, #ff1493);
                     color: white;
@@ -1181,7 +1181,7 @@ class NewPages:
                 </a>
             </div>
         </div>
-        """.format(checkout_premium=Config.CHECKOUT_PREMIUM), unsafe_allow_html=True)
+        """.format(checkout_MOLHADINHA=Config.CHECKOUT_MOLHADINHA), unsafe_allow_html=True)
 
         st.markdown("""
         <div class="package-box package-extreme">
@@ -1681,6 +1681,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
