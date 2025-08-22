@@ -134,7 +134,7 @@ class PersistentState:
     def save_state(self, user_id, data):
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT OR REPPLACE INTO global_state (user_id, session_data)
+            INSERT OR REPLACE INTO global_state (user_id, session_data)
             VALUES (?, ?)
         ''', (user_id, json.dumps(data)))
         self.conn.commit()
@@ -1401,6 +1401,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
