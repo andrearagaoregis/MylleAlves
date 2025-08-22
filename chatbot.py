@@ -76,9 +76,13 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 class Config:
     API_KEY = "AIzaSyDbGIpsR4vmAfy30eEuPjWun3Hdz6xj24U"
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+    VIP_LINK = "https://exemplo.com/vip"
     CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
     CHECKOUT_MOLHADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
     CHECKOUT_SAFADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
+    CHECKOUT_VIP_1MES = "https://checkout.exemplo.com/vip-1mes"
+    CHECKOUT_VIP_3MESES = "https://checkout.exemplo.com/vip-3meses"
+    CHECKOUT_VIP_1ANO = "https://checkout.exemplo.com/vip-1ano"
     MAX_REQUESTS_PER_SESSION = 30
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Oi%20meu%20amor%20tudo%20bem.mp3"
@@ -1677,6 +1681,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
