@@ -76,13 +76,9 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 class Config:
     API_KEY = "AIzaSyDbGIpsR4vmAfy30eEuPjWun3Hdz6xj24U"
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-    VIP_LINK = "https://exemplo.com/vip"
     CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
     CHECKOUT_MOLHADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
-    CHECKOUT_EXTREME = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
-    CHECKOUT_VIP_1MES = "https://checkout.exemplo.com/vip-1mes"
-    CHECKOUT_VIP_3MESES = "https://checkout.exemplo.com/vip-3meses"
-    CHECKOUT_VIP_1ANO = "https://checkout.exemplo.com/vip-1ano"
+    CHECKOUT_SAFADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
     MAX_REQUESTS_PER_SESSION = 30
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Oi%20meu%20amor%20tudo%20bem.mp3"
@@ -1035,7 +1031,7 @@ class NewPages:
             .package-MOLHADINHA {
                 border-color: #9400d3;
             }
-            .package-extreme {
+            .package-SAFADINHA {
                 border-color: #ff0066;
             }
             .package-header {
@@ -1151,7 +1147,7 @@ class NewPages:
             <div class="package-badge">POPULAR</div>
             <div class="package-header">
                 <h3 style="color: #9400d3;">MOLHADINHA</h3>
-                <div class="package-price" style="color: #9400d3;">R$ 99,90</div>
+                <div class="package-price" style="color: #9400d3;">R$ 39,99</div>
                 <small>experiência completa</small>
             </div>
             <ul class="package-benefits">
@@ -1184,15 +1180,15 @@ class NewPages:
         """.format(checkout_MOLHADINHA=Config.CHECKOUT_MOLHADINHA), unsafe_allow_html=True)
 
         st.markdown("""
-        <div class="package-box package-extreme">
+        <div class="package-box package-SAFADINHA">
             <div class="package-header">
-                <h3 style="color: #ff0066;">EXTREME</h3>
-                <div class="package-price" style="color: #ff0066;">R$ 199,90</div>
+                <h3 style="color: #ff0066;">SAFADINHA</h3>
+                <div class="package-price" style="color: #ff0066;">R$ 59,99</div>
                 <small>para verdadeiros fãs</small>
             </div>
             <ul class="package-benefits">
-                <li>30 fotos ultra-exclusivas</li>
-                <li>10 Videos Exclusivos</li>
+                <li>40 fotos ultra-exclusivas</li>
+                <li>40 Videos Exclusivos</li>
                 <li>Fotos Peito</li>
                 <li>Fotos Bunda</li>
                 <li>Fotos Buceta</li>
@@ -1202,7 +1198,7 @@ class NewPages:
                 <li>Acesso a conteúdos futuros</li>
             </ul>
             <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_extreme}" target="_blank" rel="noopener noreferrer" style="
+                <a href="{checkout_SAFADINHA}" target="_blank" rel="noopener noreferrer" style="
                     display: block;
                     background: linear-gradient(45deg, #ff0066, #9400d3);
                     color: white;
@@ -1219,7 +1215,7 @@ class NewPages:
                 </a>
             </div>
         </div>
-        """.format(checkout_extreme=Config.CHECKOUT_EXTREME), unsafe_allow_html=True)
+        """.format(checkout_SAFADINHA=Config.CHECKOUT_SAFADINHA), unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1681,6 +1677,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
