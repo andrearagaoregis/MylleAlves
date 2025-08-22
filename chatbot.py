@@ -858,7 +858,7 @@ class UiService:
         
         cols = st.columns(3)
         
-        for idx, colfor idx, col in enumerate(cols):
+        for idx, col for idx, col in enumerate(cols):
             if idx < len(Config.IMG_GALLERY):
                 with col:
                     st.image(Config.IMG_GALLERY[idx], use_column_width=True)
@@ -1401,4 +1401,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
