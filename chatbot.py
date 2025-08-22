@@ -858,7 +858,7 @@ class UiService:
         
         cols = st.columns(3)
         
-        for idx, col for idx, col in enumerate(cols):
+        for idx, col in enumerate(cols):
             if idx < len(Config.IMG_GALLERY):
                 with col:
                     st.image(Config.IMG_GALLERY[idx], use_column_width=True)
@@ -916,7 +916,7 @@ class UiService:
                 st.session_state.current_page = "offers"
                 save_persistent_data()
                 st.rerun()
-
+            
     @staticmethod
     def show_offers_page(conn):
         st.markdown("""
@@ -1401,5 +1401,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
