@@ -77,7 +77,7 @@ class Config:
     API_KEY = "AIzaSyDbGIpsR4vmAfy30eEuPjWun3Hdz6xj24U"
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
     VIP_LINK = "https://exemplo.com/vip"
-    CHECKOUT_START = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
+    CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
     CHECKOUT_PREMIUM = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
     CHECKOUT_EXTREME = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
     CHECKOUT_VIP_1MES = "https://checkout.exemplo.com/vip-1mes"
@@ -1029,7 +1029,7 @@ class NewPages:
                 transform: translateY(-5px);
                 box-shadow: 0 10px 20px rgba(255, 102, 179, 0.3);
             }
-            .package-start {
+            .package-TARADINHA{
                 border-color: #ff66b3;
             }
             .package-premium {
@@ -1113,21 +1113,21 @@ class NewPages:
         st.markdown('<div class="package-container">', unsafe_allow_html=True)
         
         st.markdown("""
-        <div class="package-box package-start">
+        <div class="package-box package-TARADINHA">
             <div class="package-header">
-                <h3 style="color: #ff66b3;">START</h3>
+                <h3 style="color: #ff66b3;">TARADINHA</h3>
                 <div class="package-price" style="color: #ff66b3;">R$ 49,90</div>
                 <small>para iniciantes</small>
             </div>
             <ul class="package-benefits">
-                <li>10 fotos Inéditas</li>
-                <li>3 vídeo Intimos</li>
+                <li>15 fotos Inéditas</li>
+                <li>15 vídeo Intimos</li>
                 <li>Fotos Exclusivas</li>
                 <li>Videos Intimos </li>
                 <li>Fotos Buceta</li>
             </ul>
             <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_start}" target="_blank" rel="noopener noreferrer" style="
+                <a href="{checkout_TARADINHA}" target="_blank" rel="noopener noreferrer" style="
                     display: block;
                     background: linear-gradient(45deg, #ff66b3, #ff1493);
                     color: white;
@@ -1144,7 +1144,7 @@ class NewPages:
                 </a>
             </div>
         </div>
-        """.format(checkout_start=Config.CHECKOUT_START), unsafe_allow_html=True)
+        """.format(checkout_TARADINHA=Config.CHECKOUT_TARADINHA), unsafe_allow_html=True)
 
         st.markdown("""
         <div class="package-box package-premium">
@@ -1681,6 +1681,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
