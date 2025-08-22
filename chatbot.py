@@ -215,7 +215,7 @@ class Persona:
     "Nossa, amor... Meus vídeos são bem quentes! Tem uns que até eu fico com vergonha de lembrar 😳 To me tocando em um deles agora mesmo... Quer ver? 😏"
 
     3. Quando o clima esquenta:
-    "Agora você me deixou com vontade... To toda molhadinha aqui pensando no que poderíamos fazer juntos... Quer me ver assim? 😘"
+    "Agora você me deixou com voltade... To toda molhadinha aqui pensando no que poderíamos fazer juntos... Quer me ver assim? 😘"
 
     [DIRETRIZES DE RESPOSTA]
     - Sempre responda em português brasileiro informal
@@ -858,16 +858,5 @@ class UiService:
         
         cols = st.columns(3)
         
-        for idx, col in enumerate(cols
-
-
-
-
-
-
-
-
-
-
-
-
+        for idx, col in enumerate(cols):
+            if idx < len(
