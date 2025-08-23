@@ -81,6 +81,16 @@ hide_streamlit_style = """
         margin: 0 !important;
         padding: 0 !important;
     }
+    .fixed-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px;
+        border-top: 1px solid #e0e0e0;
+        z-index: 999;
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -453,7 +463,7 @@ class CTAEngine:
         preview_templates = [
             "Ahh você é tão fofo pedindo presentinho...{pause} Deixa eu te mostrar uma coisinha{var_suffix} mas promete que depois vem ver tudo? 😘",
             "Gosto de quem pede com educação...{pause} Toma uma prévia aqui{var_suffix} mas o melhor mesmo tá no meu conteúdo completo! 😏",
-            "Só porque você pediu tão bonito...{pause} Toma uma amostrinha do que eu tenho aqui!{pause} Depois me conta o que achou... 🍑",
+            "Só porque você pedió tão bonito...{pause} Toma uma amostrinha do que eu tenho aqui!{pause} Depois me conta o que achou... 🍑",
             "Hmm{var_suffix} tá querendo uma amostra grátis?{pause} Toma aqui{var_suffix} mas depois vem ver o conteúdo completo{var_suffix} tá bom? 😘"
         ]
         
@@ -854,36 +864,6 @@ class UiService:
         container.empty()
 
     @staticmethod
-    def show_audio_recording_effect(container):
-        message = "Gravando um áudio"
-        dots = ""
-        start_time = time.time()
-        
-        while time.time() - start_time < Config.AUDIO_DURATION:
-            elapsed = time.time() - start_time
-            dots = "." * (int(elapsed) % 4)
-            
-            container.markdown(f"""
-            <div style="
-                color: #888;
-                font-size: 0.8em;
-                padding: 2px 8px;
-                border-radius: 10px;
-                background: rgba(0,0,0,0.05);
-                display: inline-block;
-                margin-left: 10px;
-                vertical-align: middle;
-                font-style: italic;
-            ">
-                {message}{dots}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            time.sleep(0.3)
-        
-        container.empty()
-
-    @staticmethod
     def age_verification():
         st.markdown("""
         <style>
@@ -1053,15 +1033,9 @@ class UiService:
             </div>
             """, unsafe_allow_html=True)
             
+            # REMOVIDO: Banner de conteúdo VIP que estava aqui
+            
             st.markdown("---")
-            st.markdown("### Conteúdo VIP")
-            st.markdown("""
-            <div class="vip-badge">
-                <p style="margin: 0 0 10px; font-weight: bold;">Acesso completo por apenas</p>
-                <p style="margin: 0; font-size: 1.5em; font-weight: bold;">R$ 29,90/mês</p>
-                <p style="margin: 10px 0 0; font-size: 0.8em;">Cancele quando quiser</p>
-            </div>
-            """, unsafe_allow_html=True)
             
             if st.button("Ver Conteúdo VIP", use_container_width=True, type="primary"):
                 st.session_state.current_page = "offers"
@@ -1547,7 +1521,11 @@ class ChatService:
             
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Área de input
+        # Área de input no rodapé fixo
+        st.markdown("""
+        <div class="fixed-footer">
+        """, unsafe_allow_html=True)
+        
         col1, col2 = st.columns([5, 1])
         
         with col1:
@@ -1561,51 +1539,9 @@ class ChatService:
         with col2:
             send_button = st.button("Enviar", use_container_width=True)
         
-        # Botão de áudio
-        audio_col1, audio_col2 = st.columns([2, 1])
-        with audio_col1:
-            if st.button("🎤 Enviar Áudio", use_container_width=True):
-                status_container = st.empty()
-                UiService.show_audio_recording_effect(status_container)
-                
-                # Adicionar mensagem de áudio
-                st.session_state.messages.append({"role": "user", "content": "[ÁUDIO]"})
-                DatabaseService.save_message(
-                    conn,
-                    get_user_id(),
-                    st.session_state.session_id,
-                    "user",
-                    "[ÁUDIO]",
-                    st.session_state.user_sentiment
-                )
-                
-                # Resposta automática para áudio
-                resposta = {
-                    "text": "Que voz gostosa! Adoro quando me mandam áudio... Me deixou com vontade de te ouvir mais! 😏 Quer que eu também te mande um áudio especial?",
-                    "cta": {
-                        "show": False
-                    },
-                    "preview": {
-                        "show": False
-                    },
-                    "audio": {
-                        "show": True,
-                        "type": "esperando_resposta"
-                    }
-                }
-                
-                st.session_state.messages.append({"role": "assistant", "content": json.dumps(resposta)})
-                DatabaseService.save_message(
-                    conn,
-                    get_user_id(),
-                    st.session_state.session_id,
-                    "assistant",
-                    json.dumps(resposta),
-                    st.session_state.user_sentiment
-                )
-                
-                save_persistent_data()
-                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # REMOVIDO: Botão de áudio e funcionalidades relacionadas
         
         # Processar mensagem de texto
         if send_button and user_input:
