@@ -1656,6 +1656,48 @@ def updated_show_chat_interface(conn):
             top: 0;
             z-index: 100;
         }
+        
+        .streamlit-input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--whatsapp-chat-bg);
+            padding: 10px 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .streamlit-input-container > div {
+            flex-grow: 1;
+        }
+        
+        .streamlit-input-container input {
+            background: #2a2f32 !important;
+            border: none !important;
+            border-radius: 20px !important;
+            padding: 9px 15px !important;
+            color: white !important;
+            font-size: 15px !important;
+            width: 100% !important;
+        }
+        
+        .streamlit-input-container button {
+            background: var(--whatsapp-light-green) !important;
+            border: none !important;
+            border-radius: 50% !important;
+            width: 40px !important;
+            height: 40px !important;
+            color: white !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            margin: 0 !important;
+        }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1708,46 +1750,27 @@ def updated_show_chat_interface(conn):
     # Rolagem automática para o final
     scroll_to_bottom()
     
-    # Área de input estilo WhatsApp no rodapé
-    st.markdown("""
-    <div class="fixed-input">
-        <input type="text" class="message-input" placeholder="Digite uma mensagem" id="messageInput">
-        <button class="send-button" onclick="sendMessage()">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="#ffffff">
-                <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"></path>
-            </svg>
-        </button>
-    </div>
+    # Área de input estilo WhatsApp no rodapé usando componentes Streamlit nativos
+    st.markdown('<div class="streamlit-input-container">', unsafe_allow_html=True)
     
-    <script>
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            if (input.value.trim() !== '') {
-                // Streamlit não suporta diretamente a execução de Python a partir de JavaScript
-                // Esta função precisará ser integrada com o Streamlit
-                console.log('Mensagem enviada:', input.value);
-                input.value = '';
-            }
-        }
-        
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    </script>
-    """, unsafe_allow_html=True)
+    col1, col2 = st.columns([5, 1])
     
-    # Implementação alternativa para enviar mensagens (Streamlit)
-    user_input = st.text_input(
-        "Digite sua mensagem...",
-        key="user_input",
-        placeholder="Digite uma mensagem",
-        label_visibility="collapsed"
-    )
+    with col1:
+        user_input = st.text_input(
+            "Digite sua mensagem...",
+            key="user_input",
+            placeholder="Digite uma mensagem",
+            label_visibility="collapsed"
+        )
     
-    if st.button("Enviar", key="send_button"):
-        if user_input and validate_user_input(user_input):
+    with col2:
+        send_button = st.button("➤", key="send_button")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Processar mensagem de texto
+    if send_button and user_input:
+        if validate_user_input(user_input):
             resposta = ChatService.send_message(user_input, conn)
             
             # Adicionar resposta ao histórico
@@ -1813,4 +1836,4 @@ def enhanced_main():
 
 # Substituir a função main original pela enhanced
 if __name__ == "__main__":
-    enhanced_main()            
+    enhanced_main()
