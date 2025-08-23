@@ -91,6 +91,18 @@ hide_streamlit_style = """
         transform: translateY(-2px) !important;
         box-shadow: 0 4px 8px rgba(255, 20, 147, 0.4) !important;
     }
+    .audio-message {
+        background: rgba(255, 102, 179, 0.15) !important;
+        padding: 15px !important;
+        border-radius: 15px !important;
+        margin: 10px 0 !important;
+        border: 1px solid #ff66b3 !important;
+        text-align: center !important;
+    }
+    .audio-icon {
+        font-size: 24px !important;
+        margin-right: 10px !important;
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -125,10 +137,22 @@ class Config:
         "twitter": "https://twitter.com/myllealves"
     }
     SOCIAL_ICONS = {
-        "instagram": "📸",
-        "onlyfans": "💎",
-        "telegram": "✈️",
-        "twitter": "🐦"
+        "instagram": "📸 Instagram",
+        "onlyfans": "💎 OnlyFans",
+        "telegram": "✈️ Telegram",
+        "twitter": "🐦 Twitter"
+    }
+    
+    # URLs dos áudios
+    AUDIOS = {
+        "boa_noite_nao_sou_fake": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Boa%20noite%20-%20N%C3%A3o%20sou%20fake%20n%C3%A3o....mp3",
+        "boa_tarde_nao_sou_fake": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Boa%20tarde%20-%20N%C3%A3o%20sou%20fake%20n%C3%A3o....mp3",
+        "bom_dia_nao_sou_fake": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Bom%20dia%20-%20n%C3%A3o%20sou%20fake%20n%C3%A3o....mp3",
+        "claro_tenho_amostra_gratis": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Claro%20eu%20tenho%20amostra%20gr%C3%A1tis.mp3",
+        "o_que_achou_amostras": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/O%20que%20achou%20das%20amostras.mp3",
+        "pq_nao_faco_chamada": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/Pq%20nao%20fa%C3%A7o%20mais%20chamada.mp3",
+        "tenho_conteudos_que_vai_amar": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/eu%20tenho%20uns%20conteudos%20aqui%20que%20vc%20vai%20amar.mp3",
+        "esperando_responder": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/vida%20to%20esperando%20voce%20me%20responder%20gatinho.mp3"
     }
 
 # ======================
@@ -271,7 +295,8 @@ class LearningEngine:
                 "fotos": ["foto", "fotos", "imagem", "imagens"],
                 "vídeos": ["video", "vídeos", "filme", "gravação"],
                 "conteúdo_explicito": ["nua", "nude", "transar", "fuder", "buceta", "peito"],
-                "pack": ["pack", "pacote", "conteúdo", "preço", "valor"]
+                "pack": ["pack", "pacote", "conteúdo", "preço", "valor"],
+                "fake": ["fake", "falsa", "bot", "robô", "artificial", "não é real"]
             }
             
             for topic, keywords in topics.items():
@@ -353,7 +378,8 @@ def save_persistent_data() -> None:
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started',
         'current_page', 'session_id', 'last_cta_time', 'preview_shown',
-        'conversation_stage', 'lead_name', 'last_interaction_time', 'user_info_collected'
+        'conversation_stage', 'lead_name', 'last_interaction_time', 
+        'user_info_collected', 'last_user_message_time', 'audio_count'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -379,6 +405,8 @@ class Persona:
     8. Mantém respostas curtas e diretas (máximo 2-3 frases)
     9. Sempre pergunta o nome e de onde é o lead naturalmente
     10. Sugere seguir nas redes sociais em momentos oportunos
+    11. Usa áudios ocasionalmente (15% das respostas) para maior realismo
+    12. Responde desconfianças sobre ser fake com áudios específicos
 
     [ABERTURA DA CONVERSA]
     "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, como me achou? 😈"
@@ -393,10 +421,12 @@ class Persona:
     - Use perguntas para qualificar e engajar
     - Crie expectativa progressiva
     - Feche vendas de forma natural e safada
-    - Seja persuasiva mas mantenha o tom sensual
+    - Seja persuasiva mas mantenha o ton sensual
     - Adapte-se às preferências do usuário aprendidas
     - Mantenha respostas curtas (máximo 2-3 frases)
     - Colete informações do lead naturalmente
+    - Use áudios em 15% das respostas para maior realismo
+    - Responda desconfianças sobre ser fake com áudios específicos
     """
 
 class CTAEngine:
@@ -455,9 +485,34 @@ class CTAEngine:
             return True
         return False
 
+    def should_use_audio(self) -> bool:
+        # Usar áudio em aproximadamente 15% das respostas
+        if 'audio_count' not in st.session_state:
+            st.session_state.audio_count = 0
+            
+        # Alternar entre texto e áudio (15% áudio, 85% texto)
+        return random.random() < 0.15
+
     def generate_response_based_on_learning(self, user_input: str, user_id: str) -> Dict:
         preferences = self.learning_engine.get_user_preferences(user_id)
         user_input = user_input.lower()
+        
+        # Verificar se o usuário desconfia que é fake/bot
+        if any(word in user_input for word in ["fake", "falsa", "bot", "robô", "artificial", "não é real", "é mentira"]):
+            # Determinar qual áudio usar baseado no horário
+            current_hour = datetime.now().hour
+            if 5 <= current_hour < 12:
+                audio_key = "bom_dia_nao_sou_fake"
+            elif 12 <= current_hour < 18:
+                audio_key = "boa_tarde_nao_sou_fake"
+            else:
+                audio_key = "boa_noite_nao_sou_fake"
+                
+            return {
+                "text": "Não sou fake não, amor! Ouça minha voz... 😘",
+                "audio": audio_key,
+                "cta": {"show": False}
+            }
         
         # Verificar preferências do usuário
         if "topic_interest" in preferences:
@@ -610,7 +665,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE: Mantenha respostas curtas (máximo 2-3 frases). Colete informações como nome e localização naturalmente. Sugira seguir nas redes sociais ocasionalmente.\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE: Mantenha respostas curtas (máximo 2-3 frases). Colete informações como nome e localização naturalmente. Sugira seguir nas redes sociais ocasionalmente. Use áudios em 15% das respostas para maior realismo.\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"audio\": \"chave_do_audio_opcional\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
                 }
             ],
             "generationConfig": {
@@ -630,6 +685,16 @@ class ApiService:
                     resposta = json.loads(gemini_response.split('```json')[1].split('```')[0].strip())
                 else:
                     resposta = json.loads(gemini_response)
+                
+                # Decidir se deve usar áudio (15% das vezes)
+                if CTAEngine().should_use_audio() and "audio" not in resposta:
+                    # Selecionar áudio apropriado baseado no contexto
+                    if any(word in prompt.lower() for word in ["amostra", "grátis", "sample", "free"]):
+                        resposta["audio"] = "claro_tenho_amostra_gratis"
+                    elif any(word in prompt.lower() for word in ["foto", "fotos", "imagem", "video", "vídeos"]):
+                        resposta["audio"] = "tenho_conteudos_que_vai_amar"
+                    elif any(word in prompt.lower() for word in ["chamada", "videochamada", "ligação", "call"]):
+                        resposta["audio"] = "pq_nao_faco_chamada"
                 
                 if resposta.get("cta", {}).get("show"):
                     if not CTAEngine().should_show_cta(st.session_state.messages):
@@ -653,6 +718,20 @@ class ApiService:
 # SERVIÇOS DE INTERFACE
 # ======================
 class UiService:
+    @staticmethod
+    def show_audio_player(audio_key: str) -> None:
+        """Exibe um player de áudio para a chave especificada"""
+        if audio_key in Config.AUDIOS:
+            st.markdown(f"""
+            <div class="audio-message">
+                <span class="audio-icon">🎵</span>
+                <audio controls autoplay style="width: 100%;">
+                    <source src="{Config.AUDIOS[audio_key]}" type="audio/mpeg">
+                    Seu navegador não suporta o elemento de áudio.
+                </audio>
+            </div>
+            """, unsafe_allow_html=True)
+
     @staticmethod
     def show_preview_image() -> None:
         st.markdown(f"""
@@ -811,6 +890,21 @@ class UiService:
                     object-fit: cover;
                     margin-bottom: 10px;
                 }
+                .sidebar-social-button {
+                    background: linear-gradient(45deg, #ff1493, #9400d3) !important;
+                    color: white !important;
+                    border: none !important;
+                    border-radius: 8px !important;
+                    padding: 10px 15px !important;
+                    margin: 5px 0 !important;
+                    width: 100% !important;
+                    text-align: center !important;
+                    transition: all 0.3s ease !important;
+                }
+                .sidebar-social-button:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 4px 8px rgba(255, 20, 147, 0.4) !important;
+                }
             </style>
             """, unsafe_allow_html=True)
             
@@ -824,24 +918,14 @@ class UiService:
             
             st.markdown("---")
             
-            # Botões de redes sociais
-            st.markdown("""
-            <div class="social-buttons">
-                <a href="{instagram}" target="_blank" class="social-button">{instagram_icon}</a>
-                <a href="{onlyfans}" target="_blank" class="social-button">{onlyfans_icon}</a>
-                <a href="{telegram}" target="_blank" class="social-button">{telegram_icon}</a>
-                <a href="{twitter}" target="_blank" class="social-button">{twitter_icon}</a>
-            </div>
-            """.format(
-                instagram=Config.SOCIAL_LINKS["instagram"],
-                instagram_icon=Config.SOCIAL_ICONS["instagram"],
-                onlyfans=Config.SOCIAL_LINKS["onlyfans"],
-                onlyfans_icon=Config.SOCIAL_ICONS["onlyfans"],
-                telegram=Config.SOCIAL_LINKS["telegram"],
-                telegram_icon=Config.SOCIAL_ICONS["telegram"],
-                twitter=Config.SOCIAL_LINKS["twitter"],
-                twitter_icon=Config.SOCIAL_ICONS["twitter"]
-            ), unsafe_allow_html=True)
+            # Botões de redes sociais (estilo igual ao menu)
+            for platform, url in Config.SOCIAL_LINKS.items():
+                if st.button(Config.SOCIAL_ICONS[platform], 
+                           key=f"sidebar_{platform}",
+                           use_container_width=True):
+                    # Abrir link em nova aba
+                    js = f"window.open('{url}', '_blank');"
+                    st.components.v1.html(f"<script>{js}</script>")
             
             st.markdown("---")
             
@@ -910,17 +994,17 @@ class UiService:
     def chat_shortcuts() -> None:
         cols = st.columns(3)
         with cols[0]:
-            if st.button("🏠", key="shortcut_home", use_container_width=True, help="Início"):
+            if st.button("🏠 Início", key="shortcut_home", use_container_width=True):
                 st.session_state.current_page = "home"
                 save_persistent_data()
                 st.rerun()
         with cols[1]:
-            if st.button("📸", key="shortcut_gallery", use_container_width=True, help="Preview"):
+            if st.button("📸 Preview", key="shortcut_gallery", use_container_width=True):
                 st.session_state.current_page = "gallery"
                 save_persistent_data()
                 st.rerun()
         with cols[2]:
-            if st.button("🎁", key="shortcut_offers", use_container_width=True, help="Packs VIP"):
+            if st.button("🎁 Packs", key="shortcut_offers", use_container_width=True):
                 st.session_state.current_page = "offers"
                 save_persistent_data()
                 st.rerun()
@@ -1107,7 +1191,9 @@ class ChatService:
             'conversation_stage': 'approach',
             'lead_name': None,
             'last_interaction_time': time.time(),
-            'user_info_collected': False
+            'user_info_collected': False,
+            'last_user_message_time': time.time(),
+            'audio_count': 0
         }
         
         for key, default in defaults.items():
@@ -1214,6 +1300,10 @@ class ChatService:
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
+                                # Mostrar áudio se existir
+                                if content_data.get("audio"):
+                                    UiService.show_audio_player(content_data["audio"])
+                                
                                 if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
                                     cta_data = content_data.get("cta", {})
                                     if st.button(cta_data.get("label", "🎁 Ver Conteúdo"),
@@ -1238,8 +1328,56 @@ class ChatService:
                             """, unsafe_allow_html=True)
 
     @staticmethod
+    def check_inactive_user() -> bool:
+        """Verifica se o usuário está inativo e envia mensagem de follow-up"""
+        if 'last_user_message_time' not in st.session_state:
+            st.session_state.last_user_message_time = time.time()
+            return False
+            
+        inactive_time = time.time() - st.session_state.last_user_message_time
+        # Se passaram mais de 2 minutos sem resposta do usuário
+        if inactive_time > 120 and len(st.session_state.messages) > 2:
+            # 30% de chance de enviar follow-up
+            if random.random() < 0.3:
+                return True
+        return False
+
+    @staticmethod
     def process_user_input(conn: sqlite3.Connection) -> None:
         ChatService.display_chat_history()
+        
+        # Verificar se usuário está inativo
+        if ChatService.check_inactive_user():
+            # Enviar mensagem de follow-up (alternando entre texto e áudio)
+            if random.random() < 0.5:  # 50% texto, 50% áudio
+                follow_up_message = {
+                    "role": "assistant",
+                    "content": json.dumps({
+                        "text": "Vida, tô esperando você me responder gatinho... 😏 O que aconteceu?",
+                        "cta": {"show": False}
+                    })
+                }
+            else:
+                follow_up_message = {
+                    "role": "assistant", 
+                    "content": json.dumps({
+                        "text": "Ei, sumido! Tô esperando sua resposta... 😘",
+                        "audio": "esperando_responder",
+                        "cta": {"show": False}
+                    })
+                }
+                
+            st.session_state.messages.append(follow_up_message)
+            DatabaseService.save_message(
+                conn,
+                get_user_id(),
+                st.session_state.session_id,
+                "assistant",
+                follow_up_message["content"]
+            )
+            st.session_state.last_user_message_time = time.time()  # Reset timer
+            save_persistent_data()
+            st.rerun()
         
         user_input = st.chat_input("💬 Digite sua mensagem...", key="chat_input")
         
@@ -1267,6 +1405,7 @@ class ChatService:
             DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "user", cleaned_input)
             st.session_state.request_count += 1
             st.session_state.last_interaction_time = time.time()
+            st.session_state.last_user_message_time = time.time()  # Atualizar tempo da última mensagem
             
             with st.chat_message("user", avatar="😎"):
                 st.markdown(f"""
@@ -1301,6 +1440,11 @@ class ChatService:
                     {resposta["text"]}
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Mostrar áudio se existir na resposta
+                if resposta.get("audio"):
+                    UiService.show_audio_player(resposta["audio"])
+                    st.session_state.audio_count += 1
                 
                 if CTAEngine().should_show_preview():
                     UiService.show_preview_image()
