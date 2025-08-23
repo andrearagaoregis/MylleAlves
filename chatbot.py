@@ -11,9 +11,23 @@ import re
 import uuid
 from datetime import datetime
 from functools import lru_cache
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import threading
 from collections import defaultdict
+import logging
+
+# ======================
+# CONFIGURAÇÃO DE LOGGING
+# ======================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("chatbot.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("MylleAlvesBot")
 
 # ======================
 # CONFIGURAÇÃO INICIAL
@@ -103,6 +117,15 @@ hide_streamlit_style = """
         font-size: 24px !important;
         margin-right: 10px !important;
     }
+    .credit-counter {
+        background: rgba(255, 102, 179, 0.2);
+        padding: 8px 12px;
+        border-radius: 15px;
+        margin: 10px 0;
+        text-align: center;
+        border: 1px solid #ff66b3;
+        font-size: 0.9em;
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -126,9 +149,9 @@ class Config:
         "SAFADINHA": "https://i.ibb.co/GvqtJ17h/BY-Admiregirls-su-Admiregirls-su-194.jpg"
     }
     IMG_GALLERY = [
-        "https://i.ibb.co/VY42ZMST/BY-Admiregirls-su-Admiregirls-su-255.jpg",
-        "https://i.ibb.co/Q7s9Zwcr/BY-Admiregirls-su-Admiregirls-su-183.jpg",
-        "https://i.ibb.co/0jRMxrFB/BY-Admiregirls-su-Admiregirls-su-271.jpg"
+        "https://i.ibb.co/MDmGhjnX/preview1.jpg",
+        "https://i.ibb.co/fGD0zvmY/preview2.jpg", 
+        "https://i.ibb.co/tSVc9Rzd/preview3.jpg"
     ]
     SOCIAL_LINKS = {
         "instagram": "https://instagram.com/myllealves",
@@ -138,7 +161,7 @@ class Config:
     }
     SOCIAL_ICONS = {
         "instagram": "📸 Instagram",
-        "facebokk": "💎 OnlyFans",
+        "facebook": "💎 OnlyFans",
         "prévias telegram": "✈️ Telegram",
         "tiktok": "🐦 Twitter"
     }
@@ -154,6 +177,368 @@ class Config:
         "tenho_conteudos_que_vai_amar": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/eu%20tenho%20uns%20conteudos%20aqui%20que%20vc%20vai%20amar.mp3",
         "esperando_responder": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/vida%20to%20esperando%20voce%20me%20responder%20gatinho.mp3"
     }
+
+# ======================
+# SISTEMAS DE MELHORIA
+# ======================
+
+class SalesEngine:
+    def __init__(self):
+        self.sales_triggers = {
+            "fotos": ["foto", "fotos", "imagem", "nua", "nude", "peito", "bunda"],
+            "vídeos": ["video", "vídeo", "transar", "fuder", "gozar"],
+            "preços": ["quanto", "valor", "preço", "custa", "comprar"]
+        }
+    
+    def should_initiate_sale(self, conversation_history: List[Dict]) -> bool:
+        if len(conversation_history) < 3:
+            return False
+            
+        user_msg_count = sum(1 for msg in conversation_history if msg["role"] == "user")
+        return user_msg_count >= 3 and user_msg_count <= 5
+    
+    def get_sales_message(self, context: str) -> Dict:
+        if any(trigger in context.lower() for trigger in self.sales_triggers["fotos"]):
+            return {
+                "text": "Essa foi só uma amostrinha... quer ver tudo? É só escolher um pack! 😈 Seu acesso chegará instantâneo no email cadastrado na compra! 📧",
+                "cta": {"show": True, "label": "📸 Ver Packs Completos", "target": "offers"}
+            }
+        elif any(trigger in context.lower() for trigger in self.sales_triggers["vídeos"]):
+            return {
+                "text": "Gostou? Imagina ver isso em 4K... nos meus packs você vê TUDO! 🔥 Seu acesso chegará instantâneo no email cadastrado na compra! 📧",
+                "cta": {"show": True, "label": "🎬 Ver Vídeos em 4K", "target": "offers"}
+            }
+        else:
+            return {
+                "text": "Seu email já está cadastrado? O acesso é instantâneo após a compra! 💋",
+                "cta": {"show": True, "label": "💳 Ver Preços", "target": "offers"}
+            }
+
+class FreeGallerySystem:
+    def __init__(self):
+        self.free_images = Config.IMG_GALLERY
+    
+    def get_remaining_credits(self, user_id: str) -> int:
+        if 'gallery_credits' not in st.session_state:
+            st.session_state.gallery_credits = 3
+        return st.session_state.gallery_credits
+    
+    def use_credit(self, user_id: str) -> bool:
+        if self.get_remaining_credits(user_id) > 0:
+            st.session_state.gallery_credits -= 1
+            save_persistent_data()
+            return True
+        return False
+    
+    def show_gallery_preview(self):
+        credits = self.get_remaining_credits(get_user_id())
+        
+        if credits <= 0:
+            return {
+                "text": "Suas visualizações gratuitas acabaram! 😔 Mas não se preocupe, você ainda pode ver tudo nos meus packs VIP! 😈",
+                "cta": {"show": True, "label": "🎁 Ver Packs VIP", "target": "offers"}
+            }
+        
+        # Usar um crédito
+        self.use_credit(get_user_id())
+        
+        # Selecionar imagem aleatória
+        image_url = random.choice(self.free_images)
+        
+        return {
+            "text": f"✨ Aqui está uma amostra especial para você! Você ainda tem {self.get_remaining_credits(get_user_id())} visualizações gratuitas. 😘",
+            "image": image_url,
+            "credits_used": True
+        }
+
+class AntiFakeSystem:
+    def __init__(self):
+        self.fake_keywords = ["fake", "falsa", "bot", "robô", "artificial", "não é real", "é mentira", "não existe"]
+        self.response_times = {}
+    
+    def detect_fake_concern(self, message: str) -> bool:
+        return any(keyword in message.lower() for keyword in self.fake_keywords)
+    
+    def get_anti_fake_response(self, message: str) -> Dict:
+        # Resposta em menos de 2 segundos
+        current_hour = datetime.now().hour
+        
+        if 5 <= current_hour < 12:
+            audio_key = "bom_dia_nao_sou_fake"
+            text = "Bom dia! Não sou fake não, amor! Sou real e bem quente... 😏 Ouça minha voz!"
+        elif 12 <= current_hour < 18:
+            audio_key = "boa_tarde_nao_sou_fake" 
+            text = "Boa tarde! Que isso, gente! Sou totalmente real... 😘 Ouça aqui!"
+        else:
+            audio_key = "boa_noite_nao_sou_fake"
+            text = "Boa noite! Não sou fake, não! Sou real e bem quente... 😏 Ouça minha voz!"
+        
+        return {
+            "text": text,
+            "audio": audio_key,
+            "quick_response": True,
+            "cta": {"show": False}
+        }
+
+class MessageBuffer:
+    def __init__(self, max_buffer_size=5, timeout_seconds=10):
+        self.buffer = []
+        self.max_size = max_buffer_size
+        self.timeout = timeout_seconds
+        self.last_message_time = 0
+    
+    def add_message(self, message: str, role: str) -> Optional[List[Dict]]:
+        current_time = time.time()
+        
+        # Se passou muito tempo desde a última mensagem, limpa o buffer
+        if current_time - self.last_message_time > self.timeout:
+            self.buffer = []
+        
+        self.buffer.append({"role": role, "content": message, "timestamp": current_time})
+        self.last_message_time = current_time
+        
+        # Se o buffer atingiu o tamanho máximo, retorna as mensagens agrupadas
+        if len(self.buffer) >= self.max_size:
+            grouped_messages = self.buffer.copy()
+            self.buffer = []
+            return grouped_messages
+        
+        return None
+    
+    def get_context(self) -> str:
+        """Retorna o contexto das últimas mensagens para análise"""
+        return " ".join([msg["content"] for msg in self.buffer[-5:] if msg["role"] == "user"])
+
+class ConversationOptimizer:
+    def __init__(self):
+        self.questions = [
+            "E você, o que achou? 😏",
+            "Me conta, gostou? 😈",
+            "E aí, o que me diz? 🔥",
+            "O que você prefere? 😘",
+            "Qual você escolheria? 💋"
+        ]
+        
+        self.ctas = [
+            {"label": "📸 Ver Mais Fotos", "target": "gallery"},
+            {"label": "🎬 Ver Vídeos Exclusivos", "target": "offers"},
+            {"label": "💳 Ver Preços", "target": "offers"},
+            {"label": "💋 Conversar Comigo", "target": "chat"}
+        ]
+    
+    def optimize_response(self, response: Dict) -> Dict:
+        text = response.get("text", "")
+        
+        # Garantir que a resposta termine com pergunta ou CTA
+        if not any(punct in text[-1] for punct in ["?", "!", "😏", "😈", "🔥", "😘", "💋"]):
+            if random.random() < 0.7:  # 70% de chance de adicionar pergunta
+                text += " " + random.choice(self.questions)
+                response["text"] = text
+            else:  # 30% de chance de adicionar CTA
+                if not response.get("cta", {}).get("show"):
+                    cta = random.choice(self.ctas)
+                    response["cta"] = {"show": True, "label": cta["label"], "target": cta["target"]}
+        
+        # Garantir que as respostas sejam curtas (máximo 2 frases)
+        sentences = text.split('. ')
+        if len(sentences) > 2:
+            response["text"] = '. '.join(sentences[:2]) + '.'
+        
+        return response
+
+class ResponseCache:
+    def __init__(self, max_size=100):
+        self.cache = {}
+        self.max_size = max_size
+        self.fallback_responses = self.load_fallback_responses()
+    
+    def load_fallback_responses(self) -> Dict:
+        return {
+            "saudacao": [
+                "Oi gostoso! 😏 Que bom te ver por aqui...",
+                "E aí, bonitão! 👀 Finalmente chegou até mim!",
+                "Olá, amor! 💋 Que delícia te ver aqui!"
+            ],
+            "fotos": [
+                "Ah, quer me ver? 😈 Tenho umas fotinhas bem quentes...",
+                "Minhas fotos são bem ousadas, hein... 😏",
+                "Eu adoro tirar fotos... especialmente as mais picantes 🔥"
+            ],
+            "vídeos": [
+                "Meus vídeos são bem quentes... 😈 Mas não é qualquer um que vê!",
+                "Gravei uns vídeos bem ousados... 👅 Quer ver?",
+                "Nos meus vídeos eu solto a imaginação 😏"
+            ],
+            "preços": [
+                "Os valores são bem acessíveis, gato 😏 Quer que eu te mostre?",
+                "Depende do quanto você quer me ver... 😈 Tenho opções!",
+                "Vou te fazer uma oferta especial agora... 👅 Quer ver?"
+            ]
+        }
+    
+    def get(self, key: str) -> Optional[Dict]:
+        return self.cache.get(key)
+    
+    def set(self, key: str, value: Dict) -> None:
+        if len(self.cache) >= self.max_size:
+            # Remove o item mais antigo (FIFO)
+            oldest_key = next(iter(self.cache))
+            del self.cache[oldest_key]
+        self.cache[key] = value
+    
+    def get_fallback(self, category: str) -> str:
+        return random.choice(self.fallback_responses.get(category, ["Que delícia conversar com você! 😏"]))
+
+class SentimentAnalyzer:
+    def __init__(self):
+        self.positive_words = ["gostei", "adoro", "amo", "incrível", "maravilhoso", "perfeito", "delícia", "tesão"]
+        self.negative_words = ["odeio", "ruim", "péssimo", "horrível", "nojo", "raiva", "ódio", "chato", "caro"]
+        self.frustration_words = ["nunca", "sempre", "de novo", "já disse", "cansado", "farto", "chega"]
+    
+    def analyze(self, text: str) -> str:
+        text_lower = text.lower()
+        
+        positive_count = sum(1 for word in self.positive_words if word in text_lower)
+        negative_count = sum(1 for word in self.negative_words if word in text_lower)
+        frustration_count = sum(1 for word in self.frustration_words if word in text_lower)
+        
+        if frustration_count > 1:
+            return "frustrated"
+        elif negative_count > positive_count:
+            return "negative"
+        elif positive_count > negative_count:
+            return "positive"
+        else:
+            return "neutral"
+    
+    def get_response_for_sentiment(self, sentiment: str, context: str) -> Dict:
+        if sentiment == "frustrated":
+            return {
+                "text": "Poxa, sinto muito se te frustrei... 😔 Vou te mandar uma amostra grátis especial para compensar! 💋",
+                "image": random.choice(Config.IMG_GALLERY),
+                "cta": {"show": False}
+            }
+        elif sentiment == "negative":
+            return {
+                "text": "Ah, não fique assim! 😘 Deixa eu te mostrar algo que vai te animar... 🔥",
+                "cta": {"show": True, "label": "🎁 Surpresa Especial", "target": "gallery"}
+            }
+        elif sentiment == "positive":
+            return {
+                "text": "Que bom que você está gostando! 😈 Imagina só ver TUDO que tenho para te mostrar...",
+                "cta": {"show": True, "label": "🚀 Ver Tudo", "target": "offers"}
+            }
+        
+        return None
+
+class AbuseProtection:
+    def __init__(self, max_messages_per_minute=10, cooldown_time=300):
+        self.max_messages = max_messages_per_minute
+        self.cooldown = cooldown_time
+        self.user_activity = defaultdict(list)
+        self.blocked_users = set()
+        
+        # Palavras ofensivas para filtrar
+        self.offensive_words = [
+            "puta", "vadia", "cadela", "piranha", "vagabunda", 
+            "arrombada", "filho da puta", "fdp", "cu", "caralho",
+            "porra", "merda", "buceta", "xereca", "pau", "piroca"
+        ]
+    
+    def check_message(self, user_id: str, message: str) -> Dict:
+        # Verificar se o usuário está bloqueado
+        if user_id in self.blocked_users:
+            return {"allowed": False, "reason": "blocked"}
+        
+        # Verificar palavras ofensivas
+        if any(word in message.lower() for word in self.offensive_words):
+            self.blocked_users.add(user_id)
+            return {"allowed": False, "reason": "offensive"}
+        
+        # Verificar taxa de mensagens
+        current_time = time.time()
+        self.user_activity[user_id] = [t for t in self.user_activity[user_id] if current_time - t < 60]
+        
+        if len(self.user_activity[user_id]) >= self.max_messages:
+            return {"allowed": False, "reason": "rate_limit"}
+        
+        self.user_activity[user_id].append(current_time)
+        return {"allowed": True}
+    
+    def get_blocked_message(self, reason: str) -> Dict:
+        if reason == "offensive":
+            return {
+                "text": "Não tolero esse tipo de linguagem. Nossa conversa acabou por aqui. 👋",
+                "cta": {"show": False},
+                "blocked": True
+            }
+        elif reason == "rate_limit":
+            return {
+                "text": "Você está enviando muitas mensagens muito rápido! Vamos com calma, amor... 😘 Volte daqui a alguns minutos.",
+                "cta": {"show": False},
+                "cooldown": True
+            }
+        
+        return {
+            "text": "Não posso continuar esta conversa no momento. 😔",
+            "cta": {"show": False},
+            "blocked": True
+        }
+
+class PerformanceOptimizer:
+    def __init__(self):
+        self.db_cache = {}
+        self.last_db_cleanup = time.time()
+        self.image_cache = {}
+        self.audio_cache = {}
+    
+    def optimize_db_queries(self, conn: sqlite3.Connection, query: str, params: tuple) -> List:
+        # Cache de consultas frequentes
+        cache_key = f"{query}_{str(params)}"
+        
+        if cache_key in self.db_cache:
+            return self.db_cache[cache_key]
+        
+        # Limpar cache periodicamente
+        if time.time() - self.last_db_cleanup > 300:  # A cada 5 minutos
+            self.db_cache.clear()
+            self.last_db_cleanup = time.time()
+        
+        try:
+            c = conn.cursor()
+            c.execute(query, params)
+            result = c.fetchall()
+            self.db_cache[cache_key] = result
+            return result
+        except sqlite3.Error:
+            return []
+    
+    def preload_media(self):
+        # Pré-carregar imagens em background
+        for img_url in Config.IMG_GALLERY + list(Config.PACK_IMAGES.values()):
+            if img_url not in self.image_cache:
+                threading.Thread(target=self._load_image, args=(img_url,), daemon=True).start()
+        
+        # Pré-carregar áudios em background
+        for audio_key, audio_url in Config.AUDIOS.items():
+            if audio_key not in self.audio_cache:
+                threading.Thread(target=self._load_audio, args=(audio_key, audio_url), daemon=True).start()
+    
+    def _load_image(self, url: str):
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                self.image_cache[url] = response.content
+        except:
+            pass
+    
+    def _load_audio(self, key: str, url: str):
+        try:
+            response = requests.get(url, timeout=15)
+            if response.status_code == 200:
+                self.audio_cache[key] = response.content
+        except:
+            pass
 
 # ======================
 # APRENDIZADO DE MÁQUINA
@@ -184,8 +569,8 @@ class LearningEngine:
             
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao carregar dados de aprendizado: {e}")
     
     def save_user_preference(self, user_id: str, preference_type: str, preference_value: str, strength: float = 1.0):
         try:
@@ -197,8 +582,8 @@ class LearningEngine:
                      (user_id, preference_type, preference_value, strength))
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao salvar preferência do usuário: {e}")
     
     def get_user_preferences(self, user_id: str) -> Dict:
         preferences = {}
@@ -212,8 +597,8 @@ class LearningEngine:
                     preferences[row[0]] = {}
                 preferences[row[0]][row[1]] = row[2]
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao obter preferências do usuário: {e}")
         return preferences
     
     def save_lead_info(self, user_id: str, name: str = None, location: str = None):
@@ -234,8 +619,8 @@ class LearningEngine:
             
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao salvar informações do lead: {e}")
     
     def get_lead_info(self, user_id: str) -> Dict:
         try:
@@ -247,8 +632,8 @@ class LearningEngine:
             
             if result:
                 return {"name": result[0], "location": result[1]}
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao obter informações do lead: {e}")
         return {"name": None, "location": None}
     
     def analyze_conversation_pattern(self, messages: List[Dict]) -> None:
@@ -308,8 +693,8 @@ class LearningEngine:
                             topic, 
                             user_text.lower().count(keyword) * 0.1
                         )
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao analisar padrão de conversa: {e}")
 
 # ======================
 # PERSISTÊNCIA DE ESTADO
@@ -379,7 +764,8 @@ def save_persistent_data() -> None:
         'connection_complete', 'chat_started',
         'current_page', 'session_id', 'last_cta_time', 'preview_shown',
         'conversation_stage', 'lead_name', 'last_interaction_time', 
-        'user_info_collected', 'last_user_message_time', 'audio_count'
+        'user_info_collected', 'last_user_message_time', 'audio_count',
+        'gallery_credits', 'free_views'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -432,6 +818,8 @@ class Persona:
 class CTAEngine:
     def __init__(self):
         self.learning_engine = LearningEngine()
+        self.sales_engine = SalesEngine()
+        self.gallery_system = FreeGallerySystem()
     
     def should_show_cta(self, conversation_history: List[Dict]) -> bool:
         if len(conversation_history) < 3:
@@ -509,7 +897,7 @@ class CTAEngine:
                 audio_key = "boa_noite_nao_sou_fake"
                 
             return {
-                "text": "Não sou fake não, amor! Ouça minha voz... 😘",
+                "text": "Não sou fake não, amor! Sou real e bem quente... 😏 Ouça minha voz!",
                 "audio": audio_key,
                 "cta": {"show": False}
             }
@@ -615,7 +1003,7 @@ class DatabaseService:
             """, (user_id, session_id, datetime.now(), role, content))
             conn.commit()
         except sqlite3.Error as e:
-            st.error(f"Erro ao salvar mensagem: {e}")
+            logger.error(f"Erro ao salvar mensagem: {e}")
 
     @staticmethod
     def load_messages(conn: sqlite3.Connection, user_id: str, session_id: str) -> List[Dict]:
@@ -634,6 +1022,14 @@ class ApiService:
     def __init__(self):
         self.cta_engine = CTAEngine()
         self.learning_engine = LearningEngine()
+        self.response_cache = ResponseCache()
+        self.conversation_optimizer = ConversationOptimizer()
+        self.sentiment_analyzer = SentimentAnalyzer()
+        self.anti_fake_system = AntiFakeSystem()
+        self.message_buffer = MessageBuffer()
+        self.sales_engine = SalesEngine()
+        self.gallery_system = FreeGallerySystem()
+        self.abuse_protection = AbuseProtection()
     
     @staticmethod
     @lru_cache(maxsize=100)
@@ -708,10 +1104,10 @@ class ApiService:
                 return {"text": gemini_response, "cta": {"show": False}}
                 
         except requests.exceptions.RequestException as e:
-            st.error(f"Erro de conexão: {str(e)}")
+            logger.error(f"Erro de conexão: {str(e)}")
             return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
         except Exception as e:
-            st.error(f"Erro inesperado: {str(e)}")
+            logger.error(f"Erro inesperado: {str(e)}")
             return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
 
 # ======================
@@ -733,7 +1129,10 @@ class UiService:
             """, unsafe_allow_html=True)
 
     @staticmethod
-    def show_preview_image() -> None:
+    def show_preview_image(image_url: str = None) -> None:
+        if not image_url:
+            image_url = Config.IMG_PREVIEW
+            
         st.markdown(f"""
         <div style="
             text-align: center;
@@ -743,7 +1142,7 @@ class UiService:
             border-radius: 10px;
             border: 1px solid #ff66b3;
         ">
-            <img src="{Config.IMG_PREVIEW}" style="
+            <img src="{image_url}" style="
                 width: 100%;
                 max-width: 300px;
                 border-radius: 10px;
@@ -752,6 +1151,17 @@ class UiService:
             <p style="color: #ff66b3; font-style: italic; margin: 0;">
                 Uma prévia do que espera por você... 😈
             </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    @staticmethod
+    def show_credit_counter() -> None:
+        gallery_system = FreeGallerySystem()
+        credits = gallery_system.get_remaining_credits(get_user_id())
+        
+        st.markdown(f"""
+        <div class="credit-counter">
+            💎 Visualizações gratuitas restantes: <strong>{credits}</strong>
         </div>
         """, unsafe_allow_html=True)
 
@@ -951,7 +1361,10 @@ class UiService:
 
     @staticmethod
     def show_gallery_page() -> None:
-        st.markdown("""
+        gallery_system = FreeGallerySystem()
+        credits = gallery_system.get_remaining_credits(get_user_id())
+        
+        st.markdown(f"""
         <div style="
             background: rgba(255, 20, 147, 0.1);
             padding: 15px;
@@ -960,18 +1373,32 @@ class UiService:
             text-align: center;
         ">
             <h3 style="color: #ff66b3; margin: 0;">✨ Preview Exclusivo</h3>
-            <p style="color: #aaa; margin: 5px 0 0; font-size: 0.9em;">Uma amostra do que te espera nos packs VIP</p>
+            <p style="color: #aaa; margin: 5px 0 0; font-size: 0.9em;">Você tem {credits} visualizações gratuitas restantes</p>
         </div>
         """, unsafe_allow_html=True)
         
-        cols = st.columns(3)
-        for idx, col in enumerate(cols):
-            with col:
-                st.image(Config.IMG_GALLERY[idx % len(Config.IMG_GALLERY)], 
-                        use_container_width=True, 
-                        caption=f"💎 Preview #{idx+1}")
-                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -10px;">✨ Exclusivo VIP</div>""", 
-                          unsafe_allow_html=True)
+        if credits <= 0:
+            st.markdown("""
+            <div style="
+                background: rgba(255, 20, 147, 0.1);
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                margin-bottom: 20px;
+            ">
+                <h4 style="color: #ff66b3; margin: 0 0 10px 0;">😔 Suas visualizações gratuitas acabaram!</h4>
+                <p style="color: #aaa; margin: 0;">Mas não se preocupe, você ainda pode ver tudo nos meus packs VIP! 😈</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            cols = st.columns(3)
+            for idx, col in enumerate(cols):
+                with col:
+                    st.image(Config.IMG_GALLERY[idx % len(Config.IMG_GALLERY)], 
+                            use_container_width=True, 
+                            caption=f"💎 Preview #{idx+1}")
+                    st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -10px;">✨ Exclusivo VIP</div>""", 
+                              unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -1033,6 +1460,9 @@ class UiService:
             <p style="margin:5px 0 0; font-size:0.9em; opacity:0.8;">Conteúdo adulto exclusivo - Aqui eu comando 😈</p>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Mostrar contador de créditos
+        UiService.show_credit_counter()
         
         ChatService.process_user_input(conn)
         save_persistent_data()
@@ -1162,6 +1592,9 @@ class NewPages:
             <p style="color: #ff66b3; font-style: italic; font-size: 1.1em;">
                 "Não fique só na vontade... escolha seu pack e venha ver TUDO que preparei para você 😈"
             </p>
+            <p style="color: #aaa; font-size: 0.9em;">
+                💡 Seu acesso chegará instantaneamente no email cadastrado na compra! 📧
+            </p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1193,7 +1626,9 @@ class ChatService:
             'last_interaction_time': time.time(),
             'user_info_collected': False,
             'last_user_message_time': time.time(),
-            'audio_count': 0
+            'audio_count': 0,
+            'gallery_credits': 3,
+            'free_views': 3
         }
         
         for key, default in defaults.items():
@@ -1304,6 +1739,10 @@ class ChatService:
                                 if content_data.get("audio"):
                                     UiService.show_audio_player(content_data["audio"])
                                 
+                                # Mostrar imagem se existir
+                                if content_data.get("image"):
+                                    UiService.show_preview_image(content_data["image"])
+                                
                                 if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
                                     cta_data = content_data.get("cta", {})
                                     if st.button(cta_data.get("label", "🎁 Ver Conteúdo"),
@@ -1344,6 +1783,15 @@ class ChatService:
 
     @staticmethod
     def process_user_input(conn: sqlite3.Connection) -> None:
+        # Inicializar sistemas de melhoria
+        sales_engine = SalesEngine()
+        gallery_system = FreeGallerySystem()
+        anti_fake_system = AntiFakeSystem()
+        message_buffer = MessageBuffer()
+        conversation_optimizer = ConversationOptimizer()
+        sentiment_analyzer = SentimentAnalyzer()
+        abuse_protection = AbuseProtection()
+        
         ChatService.display_chat_history()
         
         # Verificar se usuário está inativo
@@ -1382,6 +1830,16 @@ class ChatService:
         user_input = st.chat_input("💬 Digite sua mensagem...", key="chat_input")
         
         if user_input:
+            # Verificação de abuso
+            abuse_check = abuse_protection.check_message(get_user_id(), user_input)
+            if not abuse_check["allowed"]:
+                response = abuse_protection.get_blocked_message(abuse_check["reason"])
+                st.session_state.messages.append({"role": "assistant", "content": json.dumps(response)})
+                DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "assistant", json.dumps(response))
+                save_persistent_data()
+                st.rerun()
+                return
+            
             cleaned_input = re.sub(r'<[^>]*>', '', user_input)[:500]
             
             if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
@@ -1421,13 +1879,28 @@ class ChatService:
                 """, unsafe_allow_html=True)
             
             with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
-                # Simular digitação (0.5 segundo por caractere, mínimo 10s)
-                resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
+                # Verificar se é uma preocupação com fake
+                if anti_fake_system.detect_fake_concern(cleaned_input):
+                    resposta = anti_fake_system.get_anti_fake_response(cleaned_input)
+                # Verificar se deve iniciar vendas
+                elif sales_engine.should_initiate_sale(st.session_state.messages):
+                    resposta = sales_engine.get_sales_message(cleaned_input)
+                # Verificar se pediu por amostra grátis
+                elif any(word in cleaned_input.lower() for word in ["amostra", "grátis", "sample", "free", "ver", "mostra"]):
+                    resposta = gallery_system.show_gallery_preview()
+                else:
+                    # Análise de sentimento
+                    sentiment = sentiment_analyzer.analyze(cleaned_input)
+                    sentiment_response = sentiment_analyzer.get_response_for_sentiment(sentiment, cleaned_input)
+                    
+                    if sentiment_response:
+                        resposta = sentiment_response
+                    else:
+                        # Usar a API Gemini para resposta padrão
+                        resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
                 
-                if isinstance(resposta, str):
-                    resposta = {"text": resposta, "cta": {"show": False}}
-                elif "text" not in resposta:
-                    resposta = {"text": str(resposta), "cta": {"show": False}}
+                # Otimizar a resposta conversacional
+                resposta = conversation_optimizer.optimize_response(resposta)
                 
                 st.markdown(f"""
                 <div style="
@@ -1446,8 +1919,9 @@ class ChatService:
                     UiService.show_audio_player(resposta["audio"])
                     st.session_state.audio_count += 1
                 
-                if CTAEngine().should_show_preview():
-                    UiService.show_preview_image()
+                # Mostrar imagem se existir na resposta
+                if resposta.get("image"):
+                    UiService.show_preview_image(resposta["image"])
                 
                 if resposta.get("cta", {}).get("show"):
                     cta_data = resposta.get("cta", {})
@@ -1469,6 +1943,10 @@ class ChatService:
 # APLICAÇÃO PRINCIPAL
 # ======================
 def main():
+    # Inicializar otimizador de performance
+    performance_optimizer = PerformanceOptimizer()
+    performance_optimizer.preload_media()
+    
     if 'db_conn' not in st.session_state:
         st.session_state.db_conn = DatabaseService.init_db()
     
@@ -1521,4 +1999,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
