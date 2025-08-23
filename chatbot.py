@@ -1620,6 +1620,10 @@ class NewPages:
                     display: block;
                     background: linear-gradient(45deg, #ff0066, #9400d3);
                     color: white;
+                   <a href="{checkout_extreme}" target="_blank" rel="noopener noreferrer" style="
+                    display: block;
+                    background: linear-gradient(45deg, #ff0066, #9400d3);
+                    color: white;
                     text-align: center;
                     padding: 10px;
                     border-radius: 8px;
@@ -2092,7 +2096,6 @@ class ChatService:
                 "interest_update",
                 {"new_interests": new_interests, "total_interests": st.session_state.user_interests}
             )
-
 # ======================
 # APLICAÇÃO PRINCIPAL
 # ======================
@@ -2158,10 +2161,7 @@ def main():
         save_persistent_data()
         st.rerun()
     
-    if not st.session_state.chat_started:
-        NewPages.show_home_page(conn)
-        st.stop()
-    
+    # CORREÇÃO AQUI: Lógica simplificada para mostrar páginas
     if st.session_state.current_page == "home":
         NewPages.show_home_page(conn)
     elif st.session_state.current_page == "gallery":
@@ -2176,16 +2176,18 @@ def main():
         st.warning("Página VIP em desenvolvimento")
         if st.button("Voltar ao chat"):
             st.session_state.show_vip_offer = False
+            st.session_state.current_page = "chat"
             save_persistent_data()
             st.rerun()
     else:
+        # CORREÇÃO AQUI: Garantir que chat_started seja True quando current_page for "chat"
+        if not st.session_state.chat_started:
+            st.session_state.chat_started = True
+            save_persistent_data()
+        
         UiService.enhanced_chat_ui(conn, api_service)
     
     save_persistent_data()
 
 if __name__ == "__main__":
     main()
-
-
-
-
