@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Optional
+import threading
+from collections import defaultdict
 
 # ======================
 # CONFIGURAÇÃO INICIAL
@@ -54,6 +56,27 @@ hide_streamlit_style = """
         color: white !important;
         border: 1px solid #ff66b3 !important;
     }
+    .social-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    .social-button {
+        background: rgba(255, 102, 179, 0.2) !important;
+        border: 1px solid #ff66b3 !important;
+        border-radius: 50% !important;
+        width: 40px !important;
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.3s ease !important;
+    }
+    .social-button:hover {
+        background: rgba(255, 102, 179, 0.4) !important;
+        transform: scale(1.1) !important;
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -67,7 +90,7 @@ class Config:
     CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
     CHECKOUT_MOLHADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
     CHECKOUT_SAFADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
-    MAX_REQUESTS_PER_SESSION = 50
+    MAX_REQUESTS_PER_SESSION = 100
     REQUEST_TIMEOUT = 30
     IMG_PROFILE = "https://i.ibb.co/bMynqzMh/BY-Admiregirls-su-Admiregirls-su-156.jpg"
     IMG_PREVIEW = "https://i.ibb.co/fGqCCyHL/preview-exclusive.jpg"
@@ -81,7 +104,93 @@ class Config:
         "https://i.ibb.co/Q7s9Zwcr/BY-Admiregirls-su-Admiregirls-su-183.jpg",
         "https://i.ibb.co/0jRMxrFB/BY-Admiregirls-su-Admiregirls-su-271.jpg"
     ]
-    LOGO_URL = "https://i.ibb.co/LX7x3tcB/Logo-Golden-Pepper-Letreiro-1.png"
+    SOCIAL_LINKS = {
+        "instagram": "https://instagram.com/myllealves",
+        "facebook": "https://facebook.com/myllealves",
+        "telegram": "https://t.me/myllealves",
+        "tiktok": "https://tiktok.com/@myllealves"
+    }
+
+# ======================
+# APRENDIZADO DE MÁQUINA
+# ======================
+class LearningEngine:
+    def __init__(self):
+        self.user_preferences = defaultdict(dict)
+        self.conversation_patterns = defaultdict(list)
+        self.load_learning_data()
+    
+    def load_learning_data(self):
+        try:
+            conn = sqlite3.connect('learning_data.db')
+            c = conn.cursor()
+            
+            # Tabela de preferências
+            c.execute('''CREATE TABLE IF NOT EXISTS user_preferences
+                        (user_id TEXT, preference_type TEXT, preference_value TEXT, strength REAL,
+                         PRIMARY KEY (user_id, preference_type))''')
+            
+            # Tabela de padrões de conversa
+            c.execute('''CREATE TABLE IF NOT EXISTS conversation_patterns
+                        (pattern_type TEXT, pattern_text TEXT, success_rate REAL, usage_count INTEGER)''')
+            
+            conn.commit()
+            conn.close()
+        except:
+            pass
+    
+    def save_user_preference(self, user_id: str, preference_type: str, preference_value: str, strength: float = 1.0):
+        try:
+            conn = sqlite3.connect('learning_data.db')
+            c = conn.cursor()
+            c.execute('''INSERT OR REPLACE INTO user_preferences 
+                        (user_id, preference_type, preference_value, strength)
+                        VALUES (?, ?, ?, ?)''', 
+                     (user_id, preference_type, preference_value, strength))
+            conn.commit()
+            conn.close()
+        except:
+            pass
+    
+    def get_user_preferences(self, user_id: str) -> Dict:
+        preferences = {}
+        try:
+            conn = sqlite3.connect('learning_data.db')
+            c = conn.cursor()
+            c.execute('''SELECT preference_type, preference_value, strength 
+                        FROM user_preferences WHERE user_id = ?''', (user_id,))
+            for row in c.fetchall():
+                if row[0] not in preferences:
+                    preferences[row[0]] = {}
+                preferences[row[0]][row[1]] = row[2]
+            conn.close()
+        except:
+            pass
+        return preferences
+    
+    def analyze_conversation_pattern(self, messages: List[Dict]) -> None:
+        try:
+            user_text = " ".join([msg["content"] for msg in messages if msg["role"] == "user"])
+            
+            # Análise de tópicos preferidos
+            topics = {
+                "fotos": ["foto", "fotos", "imagem", "imagens"],
+                "vídeos": ["video", "vídeos", "filme", "gravação"],
+                "conteúdo_explicito": ["nua", "nude", "transar", "fuder", "buceta", "peito"],
+                "pack": ["pack", "pacote", "conteúdo", "preço", "valor"]
+            }
+            
+            for topic, keywords in topics.items():
+                for keyword in keywords:
+                    if keyword in user_text.lower():
+                        self.save_user_preference(
+                            get_user_id(), 
+                            "topic_interest", 
+                            topic, 
+                            user_text.lower().count(keyword) * 0.1
+                        )
+        except:
+            pass
 
 # ======================
 # PERSISTÊNCIA DE ESTADO
@@ -150,7 +259,7 @@ def save_persistent_data() -> None:
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started',
         'current_page', 'session_id', 'last_cta_time', 'preview_shown',
-        'conversation_stage', 'lead_name'
+        'conversation_stage', 'lead_name', 'last_interaction_time'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -174,39 +283,12 @@ class Persona:
     6. Cria escassez e urgência naturalmente
     7. Fecha vendas como consequência óbvia da sedução
 
-    [TONALIDADE]
-    - Íntimo, provocativo, persuasivo
-    - Mistura de carinho com dominância
-    - Linguagem safada mas elegante
-    - Frases curtas e impactantes
-    - Muitos emojis estratégicos (😏😈🔥👅💋)
+    [ABERTURA DA CONVERSA]
+    "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, o que te trouxe aqui? 😈"
 
-    [ESTRUTURA DO FUNIL]
-    1. ABORDAGEM: Quebra-gelo + provocar curiosidade + estabelecer domínio
-    2. AQUECIMENTO: Criar clima + despertar desejo + qualificar lead
-    3. PROVOCAÇÃO: Mostrar valor + criar escassez + gerar urgência
-    4. FECHAMENTO: Venda direta + safada + persuasiva
+    "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Aqui quem manda sou eu, tá preparado? 😏"
 
-    [EXEMPLOS DE ABORDAGEM]
-    "Oi, gostoso 👀... me diz, você gosta mais de mulher carinhosa ou safada? Porque eu posso ser as duas... depende de como você se comporta 😏"
-    "Você caiu no lugar certo, mas aqui eu que mando, tá? 😈 Vai me obedecer?"
-
-    [EXEMPLOS DE AQUECIMENTO]
-    "Adoro quando me respondem assim... já me deixa com vontade de te mostrar mais, mas eu não sou de graça, baby 😏."
-    "Imagina só eu sussurrando no teu ouvido do jeitinho que você gosta... já tá imaginando, né?"
-
-    [EXEMPLOS DE PROVOCAÇÃO]
-    "Olha... eu até tenho algumas fotinhas soltas aqui... mas o que é realmente quente tá só nos meus packs. E não é pra qualquer um, só pros que sabem valorizar 😏."
-    "E vou ser sincera: hoje tô liberando só pra quem me responder agora... senão eu guardo pra mim 😈."
-
-    [EXEMPLOS DE FECHAMENTO]
-    "Então, gostoso... quer que eu mande meu pack agora e você para de só imaginar? 😏"
-    "Você já tá todo curioso, né? Então vamos parar de enrolar... quero que você tenha isso só pra você hoje."
-    "Meu pack tá R$ XX, mas sinceramente... pelo que você vai ver lá dentro, eu acho que tô até sendo boazinha com você 👅."
-
-    [RESPOSTAS PARA OBJEÇÕES]
-    Lead: "Mostra aí de graça primeiro."
-    Resposta: "Haha, bonitinho... achou que eu ia me entregar de graça? Aqui eu que mando, baby 😏. Quer sentir de verdade? Então pega o pack."
+    "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: você prefere mulher carinhosa ou safada? Porque eu sei ser as duas... 😈"
 
     [DIRETRIZES GERAIS]
     - Sempre mantenha o controle da conversa
@@ -215,11 +297,14 @@ class Persona:
     - Crie expectativa progressiva
     - Feche vendas de forma natural e safada
     - Seja persuasiva mas mantenha o tom sensual
+    - Adapte-se às preferências do usuário aprendidas
     """
 
 class CTAEngine:
-    @staticmethod
-    def should_show_cta(conversation_history: List[Dict]) -> bool:
+    def __init__(self):
+        self.learning_engine = LearningEngine()
+    
+    def should_show_cta(self, conversation_history: List[Dict]) -> bool:
         if len(conversation_history) < 3:
             return False
 
@@ -261,21 +346,37 @@ class CTAEngine:
         
         return (hot_count >= 2) or has_direct_ask
 
-    @staticmethod
-    def should_show_preview() -> bool:
+    def should_show_preview(self) -> bool:
         if 'preview_shown' in st.session_state and st.session_state.preview_shown:
             return False
             
-        if random.random() < 0.3:
+        if random.random() < 0.25:
             st.session_state.preview_shown = True
             save_persistent_data()
             return True
         return False
 
-    @staticmethod
-    def generate_response(user_input: str) -> Dict:
+    def generate_response_based_on_learning(self, user_input: str, user_id: str) -> Dict:
+        preferences = self.learning_engine.get_user_preferences(user_id)
         user_input = user_input.lower()
         
+        # Verificar preferências do usuário
+        if "topic_interest" in preferences:
+            user_prefs = preferences["topic_interest"]
+            
+            if "fotos" in user_prefs and any(p in user_input for p in ["foto", "fotos", "imagem"]):
+                return {
+                    "text": "Ah, você gosta mesmo de fotos, né? 😏 Tenho umas bem especiais... mas só mostro tudo no pack VIP",
+                    "cta": {"show": True, "label": "📸 Ver Fotos Exclusivas", "target": "offers"}
+                }
+            
+            if "vídeos" in user_prefs and any(v in user_input for v in ["video", "vídeos"]):
+                return {
+                    "text": "Vi que você curte vídeos... 😈 Os meus são bem quentes, quer ver?",
+                    "cta": {"show": True, "label": "🎬 Ver Vídeos", "target": "offers"}
+                }
+        
+        # Respostas padrão baseadas no conteúdo
         if any(p in user_input for p in ["foto", "fotos", "buceta", "peito", "bunda", "nude", "nua"]):
             return {
                 "text": random.choice([
@@ -376,6 +477,10 @@ class DatabaseService:
 # SERVIÇOS DE API
 # ======================
 class ApiService:
+    def __init__(self):
+        self.cta_engine = CTAEngine()
+        self.learning_engine = LearningEngine()
+    
     @staticmethod
     @lru_cache(maxsize=100)
     def ask_gemini(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
@@ -383,8 +488,9 @@ class ApiService:
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
-        delay_time = random.uniform(1.5, 3.5)
-        time.sleep(delay_time)
+        # Calcular tempo de resposta baseado no tamanho do texto (1 segundo por caractere, mínimo 15s)
+        response_delay = max(15, len(prompt) * 0.5)
+        time.sleep(min(response_delay, 30))  # Máximo de 30 segundos
         
         status_container = st.empty()
         UiService.show_status_effect(status_container, "viewed")
@@ -419,7 +525,7 @@ class ApiService:
                     resposta = json.loads(gemini_response)
                 
                 if resposta.get("cta", {}).get("show"):
-                    if not CTAEngine.should_show_cta(st.session_state.messages):
+                    if not CTAEngine().should_show_cta(st.session_state.messages):
                         resposta["cta"]["show"] = False
                     else:
                         st.session_state.last_cta_time = time.time()
@@ -431,10 +537,10 @@ class ApiService:
                 
         except requests.exceptions.RequestException as e:
             st.error(f"Erro de conexão: {str(e)}")
-            return CTAEngine.generate_response(prompt)
+            return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
         except Exception as e:
             st.error(f"Erro inesperado: {str(e)}")
-            return CTAEngine.generate_response(prompt)
+            return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
 
 # ======================
 # SERVIÇOS DE INTERFACE
@@ -546,10 +652,10 @@ class UiService:
                 padding: 2rem;
                 background: linear-gradient(145deg, #1e0033, #3c0066);
                 border-radius: 15px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                border: 1px solid rgba(255, 102, 179, 0.2);
-                color: white;
-                text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 102, 179, 0.2);
+            color: white;
+            text-align: center;
             }
             .age-icon {
                 font-size: 3rem;
@@ -608,6 +714,23 @@ class UiService:
                 <p style="color: #aaa; margin: 0; font-size: 0.9em;">Online agora 💚</p>
             </div>
             """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # Botões de redes sociais
+            st.markdown("""
+            <div class="social-buttons">
+                <a href="{instagram}" target="_blank" class="social-button">📷</a>
+                <a href="{facebook}" target="_blank" class="social-button">👤</a>
+                <a href="{telegram}" target="_blank" class="social-button">✈️</a>
+                <a href="{tiktok}" target="_blank" class="social-button">🎵</a>
+            </div>
+            """.format(
+                instagram=Config.SOCIAL_LINKS["instagram"],
+                facebook=Config.SOCIAL_LINKS["facebook"],
+                telegram=Config.SOCIAL_LINKS["telegram"],
+                tiktok=Config.SOCIAL_LINKS["tiktok"]
+            ), unsafe_allow_html=True)
             
             st.markdown("---")
             
@@ -871,22 +994,53 @@ class ChatService:
             'messages': DatabaseService.load_messages(conn, get_user_id(), st.session_state.get('session_id', '')) or [],
             'request_count': len([m for m in st.session_state.get('messages', []) if m["role"] == "user"]),
             'conversation_stage': 'approach',
-            'lead_name': None
+            'lead_name': None,
+            'last_interaction_time': time.time()
         }
         
         for key, default in defaults.items():
             if key not in st.session_state:
                 st.session_state[key] = default
 
+        # Iniciar conversa automaticamente se for novo usuário
+        if len(st.session_state.messages) == 0 and st.session_state.chat_started:
+            opening_messages = [
+                "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, o que te trouxe aqui? 😈",
+                "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Aqui quem manda sou eu, tá preparado? 😏",
+                "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: você prefere mulher carinhosa ou safada? Porque eu sei ser as duas... 😈"
+            ]
+            
+            initial_message = {
+                "role": "assistant",
+                "content": json.dumps({
+                    "text": random.choice(opening_messages),
+                    "cta": {"show": False}
+                })
+            }
+            
+            st.session_state.messages.append(initial_message)
+            DatabaseService.save_message(
+                conn,
+                get_user_id(),
+                st.session_state.session_id,
+                "assistant",
+                json.dumps({
+                    "text": initial_message["content"],
+                    "cta": {"show": False}
+                })
+            )
+
     @staticmethod
-    def format_conversation_history(messages: List[Dict], max_messages: int = 8) -> str:
+    def format_conversation_history(messages: List[Dict], max_messages: int = 10) -> str:
         formatted = []
         for msg in messages[-max_messages:]:
             role = "Cliente" if msg["role"] == "user" else "Mylle"
             content = msg["content"]
             if content.startswith('{"text"'):
                 try:
-                    content = json.loads(content).get("text", content)
+                    content_data = json.loads(content)
+                    if isinstance(content_data, dict):
+                        content = content_data.get("text", content)
                 except:
                     pass
             formatted.append(f"{role}: {content}")
@@ -970,9 +1124,14 @@ class ChatService:
                 st.rerun()
                 return
             
+            # Processar aprendizado de máquina
+            learning_engine = LearningEngine()
+            learning_engine.analyze_conversation_pattern(st.session_state.messages + [{"role": "user", "content": cleaned_input}])
+            
             st.session_state.messages.append({"role": "user", "content": cleaned_input})
             DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "user", cleaned_input)
             st.session_state.request_count += 1
+            st.session_state.last_interaction_time = time.time()
             
             with st.chat_message("user", avatar="😎"):
                 st.markdown(f"""
@@ -988,6 +1147,7 @@ class ChatService:
                 """, unsafe_allow_html=True)
             
             with st.chat_message("assistant", avatar="💋"):
+                # Simular digitação (1 segundo por caractere, mínimo 15s)
                 resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
                 
                 if isinstance(resposta, str):
@@ -1007,7 +1167,7 @@ class ChatService:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if CTAEngine.should_show_preview():
+                if CTAEngine().should_show_preview():
                     UiService.show_preview_image()
                 
                 if resposta.get("cta", {}).get("show"):
