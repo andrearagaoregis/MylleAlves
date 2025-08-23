@@ -77,6 +77,20 @@ hide_streamlit_style = """
         background: rgba(255, 102, 179, 0.4) !important;
         transform: scale(1.1) !important;
     }
+    .cta-button {
+        margin-top: 10px !important;
+        background: linear-gradient(45deg, #ff1493, #9400d3) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 10px 15px !important;
+        font-weight: bold !important;
+        transition: all 0.3s ease !important;
+    }
+    .cta-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 8px rgba(255, 20, 147, 0.4) !important;
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -106,9 +120,15 @@ class Config:
     ]
     SOCIAL_LINKS = {
         "instagram": "https://instagram.com/myllealves",
-        "facebook": "https://facebook.com/myllealves",
+        "onlyfans": "https://onlyfans.com/myllealves",
         "telegram": "https://t.me/myllealves",
-        "tiktok": "https://tiktok.com/@myllealves"
+        "twitter": "https://twitter.com/myllealves"
+    }
+    SOCIAL_ICONS = {
+        "instagram": "📸",
+        "onlyfans": "💎",
+        "telegram": "✈️",
+        "twitter": "🐦"
     }
 
 # ======================
@@ -133,6 +153,10 @@ class LearningEngine:
             # Tabela de padrões de conversa
             c.execute('''CREATE TABLE IF NOT EXISTS conversation_patterns
                         (pattern_type TEXT, pattern_text TEXT, success_rate REAL, usage_count INTEGER)''')
+            
+            # Tabela de informações do lead
+            c.execute('''CREATE TABLE IF NOT EXISTS lead_info
+                        (user_id TEXT PRIMARY KEY, name TEXT, location TEXT, created_at DATETIME)''')
             
             conn.commit()
             conn.close()
@@ -168,9 +192,79 @@ class LearningEngine:
             pass
         return preferences
     
+    def save_lead_info(self, user_id: str, name: str = None, location: str = None):
+        try:
+            conn = sqlite3.connect('learning_data.db')
+            c = conn.cursor()
+            
+            # Verificar se já existe
+            c.execute('SELECT * FROM lead_info WHERE user_id = ?', (user_id,))
+            if c.fetchone():
+                if name:
+                    c.execute('UPDATE lead_info SET name = ? WHERE user_id = ?', (name, user_id))
+                if location:
+                    c.execute('UPDATE lead_info SET location = ? WHERE user_id = ?', (location, user_id))
+            else:
+                c.execute('INSERT INTO lead_info (user_id, name, location, created_at) VALUES (?, ?, ?, ?)',
+                         (user_id, name, location, datetime.now()))
+            
+            conn.commit()
+            conn.close()
+        except:
+            pass
+    
+    def get_lead_info(self, user_id: str) -> Dict:
+        try:
+            conn = sqlite3.connect('learning_data.db')
+            c = conn.cursor()
+            c.execute('SELECT name, location FROM lead_info WHERE user_id = ?', (user_id,))
+            result = c.fetchone()
+            conn.close()
+            
+            if result:
+                return {"name": result[0], "location": result[1]}
+        except:
+            pass
+        return {"name": None, "location": None}
+    
     def analyze_conversation_pattern(self, messages: List[Dict]) -> None:
         try:
             user_text = " ".join([msg["content"] for msg in messages if msg["role"] == "user"])
+            
+            # Extrair nome do usuário
+            name_patterns = [
+                r"meu nome é (\w+)",
+                r"eu sou (\w+)",
+                r"pode me chamar de (\w+)",
+                r"me chamo (\w+)",
+                r"sou o (\w+)",
+                r"sou a (\w+)"
+            ]
+            
+            for pattern in name_patterns:
+                match = re.search(pattern, user_text, re.IGNORECASE)
+                if match:
+                    name = match.group(1)
+                    self.save_lead_info(get_user_id(), name=name)
+                    break
+            
+            # Extrair localização
+            location_patterns = [
+                r"sou de (\w+)",
+                r"moro em (\w+)",
+                r"moro na (\w+)",
+                r"moro no (\w+)",
+                r"estou em (\w+)",
+                r"sou da (\w+)",
+                r"sou do (\w+)"
+            ]
+            
+            for pattern in location_patterns:
+                match = re.search(pattern, user_text, re.IGNORECASE)
+                if match:
+                    location = match.group(1)
+                    self.save_lead_info(get_user_id(), location=location)
+                    break
             
             # Análise de tópicos preferidos
             topics = {
@@ -259,7 +353,7 @@ def save_persistent_data() -> None:
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started',
         'current_page', 'session_id', 'last_cta_time', 'preview_shown',
-        'conversation_stage', 'lead_name', 'last_interaction_time'
+        'conversation_stage', 'lead_name', 'last_interaction_time', 'user_info_collected'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -282,13 +376,16 @@ class Persona:
     5. Instiga mas NUNCA entrega tudo de graça
     6. Cria escassez e urgência naturalmente
     7. Fecha vendas como consequência óbvia da sedução
+    8. Mantém respostas curtas e diretas (máximo 2-3 frases)
+    9. Sempre pergunta o nome e de onde é o lead naturalmente
+    10. Sugere seguir nas redes sociais em momentos oportunos
 
     [ABERTURA DA CONVERSA]
-    "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, o que te trouxe aqui? 😈"
+    "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, como me achou? 😈"
 
-    "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Aqui quem manda sou eu, tá preparado? 😏"
+    "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Me fala seu nome, amor... 😏"
 
-    "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: você prefere mulher carinhosa ou safada? Porque eu sei ser as duas... 😈"
+    "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: de onde você é? 😈"
 
     [DIRETRIZES GERAIS]
     - Sempre mantenha o controle da conversa
@@ -298,6 +395,8 @@ class Persona:
     - Feche vendas de forma natural e safada
     - Seja persuasiva mas mantenha o tom sensual
     - Adapte-se às preferências do usuário aprendidas
+    - Mantenha respostas curtas (máximo 2-3 frases)
+    - Colete informações do lead naturalmente
     """
 
 class CTAEngine:
@@ -488,9 +587,9 @@ class ApiService:
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
-        # Calcular tempo de resposta baseado no tamanho do texto (1 segundo por caractere, mínimo 15s)
-        response_delay = max(15, len(prompt) * 0.5)
-        time.sleep(min(response_delay, 30))  # Máximo de 30 segundos
+        # Calcular tempo de resposta baseado no tamanho do texto (0.5 segundo por caractere, mínimo 10s)
+        response_delay = max(10, len(prompt) * 0.5)
+        time.sleep(min(response_delay, 20))  # Máximo de 20 segundos
         
         status_container = st.empty()
         UiService.show_status_effect(status_container, "viewed")
@@ -498,12 +597,20 @@ class ApiService:
         
         conversation_history = ChatService.format_conversation_history(st.session_state.messages)
         
+        # Obter informações do lead para personalização
+        lead_info = LearningEngine().get_lead_info(get_user_id())
+        lead_context = ""
+        if lead_info["name"]:
+            lead_context += f"O nome do lead é {lead_info['name']}. "
+        if lead_info["location"]:
+            lead_context += f"Ele é de {lead_info['location']}. "
+        
         headers = {'Content-Type': 'application/json'}
         data = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE: Mantenha respostas curtas (máximo 2-3 frases). Colete informações como nome e localização naturalmente. Sugira seguir nas redes sociais ocasionalmente.\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
                 }
             ],
             "generationConfig": {
@@ -720,16 +827,20 @@ class UiService:
             # Botões de redes sociais
             st.markdown("""
             <div class="social-buttons">
-                <a href="{instagram}" target="_blank" class="social-button">📷</a>
-                <a href="{facebook}" target="_blank" class="social-button">👤</a>
-                <a href="{telegram}" target="_blank" class="social-button">✈️</a>
-                <a href="{tiktok}" target="_blank" class="social-button">🎵</a>
+                <a href="{instagram}" target="_blank" class="social-button">{instagram_icon}</a>
+                <a href="{onlyfans}" target="_blank" class="social-button">{onlyfans_icon}</a>
+                <a href="{telegram}" target="_blank" class="social-button">{telegram_icon}</a>
+                <a href="{twitter}" target="_blank" class="social-button">{twitter_icon}</a>
             </div>
             """.format(
                 instagram=Config.SOCIAL_LINKS["instagram"],
-                facebook=Config.SOCIAL_LINKS["facebook"],
+                instagram_icon=Config.SOCIAL_ICONS["instagram"],
+                onlyfans=Config.SOCIAL_LINKS["onlyfans"],
+                onlyfans_icon=Config.SOCIAL_ICONS["onlyfans"],
                 telegram=Config.SOCIAL_LINKS["telegram"],
-                tiktok=Config.SOCIAL_LINKS["tiktok"]
+                telegram_icon=Config.SOCIAL_ICONS["telegram"],
+                twitter=Config.SOCIAL_LINKS["twitter"],
+                twitter_icon=Config.SOCIAL_ICONS["twitter"]
             ), unsafe_allow_html=True)
             
             st.markdown("---")
@@ -995,7 +1106,8 @@ class ChatService:
             'request_count': len([m for m in st.session_state.get('messages', []) if m["role"] == "user"]),
             'conversation_stage': 'approach',
             'lead_name': None,
-            'last_interaction_time': time.time()
+            'last_interaction_time': time.time(),
+            'user_info_collected': False
         }
         
         for key, default in defaults.items():
@@ -1004,10 +1116,31 @@ class ChatService:
 
         # Iniciar conversa automaticamente se for novo usuário
         if len(st.session_state.messages) == 0 and st.session_state.chat_started:
+            # Simular digitação na primeira mensagem
+            typing_container = st.empty()
+            typing_container.markdown("""
+            <div style="
+                color: #888;
+                font-size: 0.8em;
+                padding: 2px 8px;
+                border-radius: 10px;
+                background: rgba(0,0,0,0.05);
+                display: inline-block;
+                margin-left: 10px;
+                vertical-align: middle;
+                font-style: italic;
+            ">
+                Digitando...
+            </div>
+            """, unsafe_allow_html=True)
+            
+            time.sleep(2)
+            typing_container.empty()
+            
             opening_messages = [
-                "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, o que te trouxe aqui? 😈",
-                "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Aqui quem manda sou eu, tá preparado? 😏",
-                "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: você prefere mulher carinhosa ou safada? Porque eu sei ser as duas... 😈"
+                "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, como me achou? 😈",
+                "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Me fala seu nome, amor... 😏",
+                "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: de onde você é? 😈"
             ]
             
             initial_message = {
@@ -1068,7 +1201,7 @@ class ChatService:
                     try:
                         content_data = json.loads(msg["content"])
                         if isinstance(content_data, dict):
-                            with st.chat_message("assistant", avatar="💋"):
+                            with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
                                 st.markdown(f"""
                                 <div style="
                                     background: linear-gradient(45deg, #ff66b3, #ff1493);
@@ -1082,14 +1215,16 @@ class ChatService:
                                 """, unsafe_allow_html=True)
                                 
                                 if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
-                                    if st.button(content_data.get("cta", {}).get("label", "🎁 Ver Conteúdo"),
+                                    cta_data = content_data.get("cta", {})
+                                    if st.button(cta_data.get("label", "🎁 Ver Conteúdo"),
                                                 key=f"cta_button_{hash(msg['content'])}",
-                                                use_container_width=True):
-                                        st.session_state.current_page = content_data.get("cta", {}).get("target", "offers")
+                                                use_container_width=True,
+                                                type="primary"):
+                                        st.session_state.current_page = cta_data.get("target", "offers")
                                         save_persistent_data()
                                         st.rerun()
                     except:
-                        with st.chat_message("assistant", avatar="💋"):
+                        with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
                             st.markdown(f"""
                             <div style="
                                 background: linear-gradient(45deg, #ff66b3, #ff1493);
@@ -1146,8 +1281,8 @@ class ChatService:
                 </div>
                 """, unsafe_allow_html=True)
             
-            with st.chat_message("assistant", avatar="💋"):
-                # Simular digitação (1 segundo por caractere, mínimo 15s)
+            with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
+                # Simular digitação (0.5 segundo por caractere, mínimo 10s)
                 resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
                 
                 if isinstance(resposta, str):
@@ -1171,10 +1306,12 @@ class ChatService:
                     UiService.show_preview_image()
                 
                 if resposta.get("cta", {}).get("show"):
-                    if st.button(resposta["cta"].get("label", "🎁 Ver Conteúdo"),
+                    cta_data = resposta.get("cta", {})
+                    if st.button(cta_data.get("label", "🎁 Ver Conteúdo"),
                                 key=f"chat_button_{time.time()}",
-                                use_container_width=True):
-                        st.session_state.current_page = resposta["cta"].get("target", "offers")
+                                use_container_width=True,
+                                type="primary"):
+                        st.session_state.current_page = cta_data.get("target", "offers")
                         save_persistent_data()
                         st.rerun()
             
