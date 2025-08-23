@@ -46,19 +46,19 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 class Config:
     API_KEY = st.secrets.get("API_KEY", "AIzaSyDbGIpsR4vmAfy30eEuPjWun3Hdz6xj24U")
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-    CHECKOUT_START = "https://checkout.exemplo.com/start"
-    CHECKOUT_PREMIUM = "https://checkout.exemplo.com/premium"
-    CHECKOUT_EXTREME = "https://checkout.exemplo.com/extreme"
+    CHECKOUT_TARADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACC74F-01EC-4770-B182-B5775AF62A1D"
+    CHECKOUT_MOLHADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD1E6-0EFD-4E3E-9F9D-BA0C1A2D7E7A"
+    CHECKOUT_SAFADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
     MAX_REQUESTS_PER_SESSION = 30
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3"
     AUDIO_DURATION = 7
-    IMG_PROFILE = "https://i.ibb.co/ks5CNrDn/IMG-9256.jpg"
+    IMG_PROFILE = "https://ibb.co/TB37LR9b"
     IMG_PREVIEW = "https://i.ibb.co/fGqCCyHL/preview-exclusive.jpg"
     IMG_GALLERY = [
-        "https://i.ibb.co/zhNZL4FF/IMG-9198.jpg",
-        "https://i.ibb.co/Y4B7CbXf/IMG-9202.jpg",
-        "https://i.ibb.co/Fqf0gPPq/IMG-9199.jpg"
+        "https://ibb.co/sdbzr45s",
+        "https://ibb.co/vtBd35Y",
+        "https://ibb.co/vtBd35Y"
     ]
     LOGO_URL = "https://i.ibb.co/LX7x3tcB/Logo-Golden-Pepper-Letreiro-1.png"
 
@@ -727,25 +727,25 @@ class NewPages:
 
         packages = [
             {
-                "name": "START",
-                "price": "R$ 49,90",
-                "benefits": ["10 fotos Inéditas", "3 vídeos Intimos", "Fotos Exclusivas"],
+                "name": "TARADINHA",
+                "price": "R$ 29,99",
+                "benefits": ["15 fotos Inéditas", "15 vídeos Intimos", "Fotos Exclusivas"],
                 "color": "#ff66b3",
-                "link": Config.CHECKOUT_START
+                "link": Config.CHECKOUT_TARADINHA
             },
             {
-                "name": "PREMIUM",
-                "price": "R$ 99,90", 
-                "benefits": ["20 fotos exclusivas", "5 vídeos premium", "Conteúto completo"],
+                "name": "MOLHADINHA",
+                "price": "R$ 49,99", 
+                "benefits": ["25 fotos exclusivas", "25 vídeos premium", "Conteúto completo"],
                 "color": "#9400d3",
-                "link": Config.CHECKOUT_PREMIUM
+                "link": Config.CHECKOUT_MOLHADINHA
             },
             {
-                "name": "EXTREME",
-                "price": "R$ 199,90",
-                "benefits": ["30 fotos ultra-exclusivas", "10 Videos Exclusivos", "Acesso total"],
+                "name": "SAFADINHA",
+                "price": "R$ 69,99",
+                "benefits": ["40 fotos ultra-exclusivas", "40 Videos Exclusivos", "Acesso total"],
                 "color": "#ff0066",
-                "link": Config.CHECKOUT_EXTREME
+                "link": Config.CHECKOUT_SAFADINHA
             }
         ]
 
@@ -1046,3 +1046,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
