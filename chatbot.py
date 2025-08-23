@@ -1095,7 +1095,7 @@ class UiService:
             """.format(profile_img=Config.IMG_PROFILE), unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("#4CAF50 📱 Redes Sociais")
+            st.markdown("### 📱 Redes Sociais")
             
             st.markdown("""
             <div class="social-buttons">
@@ -2176,5 +2176,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
