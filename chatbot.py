@@ -1526,8 +1526,7 @@ def main():
     # Salvar estado persistentemente
     save_persistent_data()
 
-if __name__ == "__main__":
-    main()
+
 # ======================
 # INICIALIZAÇÃO E CONTROLE PRINCIPAL (CONTINUAÇÃO)
 # ======================
@@ -1837,3 +1836,4 @@ def enhanced_main():
 # Substituir a função main original pela enhanced
 if __name__ == "__main__":
     enhanced_main()
+
