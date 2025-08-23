@@ -71,7 +71,7 @@ class Config:
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3"
     AUDIO_DURATION = 7
-    IMG_PROFILE = "https://i.ibb.co/TB37LR9b"
+    IMG_PROFILE = "https://i.ibb.co/bMynqzMh/BY-Admiregirls-su-Admiregirls-su-156.jpg"
     IMG_PREVIEW = "https://i.ibb.co/fGqCCyHL/preview-exclusive.jpg"
     PACK_IMAGES = {
         "TARADINHA": "https://i.ibb.co/0jQ6W1L/taradinha.jpg",
@@ -1078,3 +1078,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
