@@ -132,15 +132,15 @@ class Config:
     ]
     SOCIAL_LINKS = {
         "instagram": "https://instagram.com/myllealves",
-        "onlyfans": "https://onlyfans.com/myllealves",
-        "telegram": "https://t.me/myllealves",
-        "twitter": "https://twitter.com/myllealves"
+        "facebook": "https://onlyfans.com/myllealves",
+        "prévias telegram": "https://t.me/myllealves",
+        "tiktok": "https://twitter.com/myllealves"
     }
     SOCIAL_ICONS = {
         "instagram": "📸 Instagram",
-        "onlyfans": "💎 OnlyFans",
-        "telegram": "✈️ Telegram",
-        "twitter": "🐦 Twitter"
+        "facebokk": "💎 OnlyFans",
+        "prévias telegram": "✈️ Telegram",
+        "tiktok": "🐦 Twitter"
     }
     
     # URLs dos áudios
@@ -1521,3 +1521,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
