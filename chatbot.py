@@ -1466,7 +1466,7 @@ def show_home_page():
             st.session_state.current_page = "messages"
             save_persistent_data()
             st.rerun()
-            ======================
+======================
 SERVIÇOS DE CHAT
 ======================
 class ChatService:
@@ -1822,3 +1822,4 @@ elif st.session_state.current_page == "offers":
 save_persistent_data()
 if name == "main":
 main()
+
