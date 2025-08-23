@@ -74,14 +74,14 @@ class Config:
     IMG_PROFILE = "https://i.ibb.co/bMynqzMh/BY-Admiregirls-su-Admiregirls-su-156.jpg"
     IMG_PREVIEW = "https://i.ibb.co/fGqCCyHL/preview-exclusive.jpg"
     PACK_IMAGES = {
-        "TARADINHA": "https://i.ibb.co/0jQ6W1L/taradinha.jpg",
-        "MOLHADINHA": "https://i.ibb.co/4Z0LQ2R/molhadinha.jpg", 
-        "SAFADINHA": "https://i.ibb.co/7W0LQ3Z/safadinha.jpg"
+        "TARADINHA": "https://i.ibb.co/sJJRttzM/BY-Admiregirls-su-Admiregirls-su-033.jpg",
+        "MOLHADINHA": "https://i.ibb.co/NnTYdSw6/BY-Admiregirls-su-Admiregirls-su-040.jpg", 
+        "SAFADINHA": "https://i.ibb.co/GvqtJ17h/BY-Admiregirls-su-Admiregirls-su-194.jpg"
     }
     IMG_GALLERY = [
-        "https://ibb.co/sdbzr45s",
-        "https://ibb.co/vtBd35Y",
-        "https://ibb.co/vtBd35Y"
+        "https://i.ibb.co/VY42ZMST/BY-Admiregirls-su-Admiregirls-su-255.jpg",
+        "https://i.ibb.co/Q7s9Zwcr/BY-Admiregirls-su-Admiregirls-su-183.jpg",
+        "https://i.ibb.co/0jRMxrFB/BY-Admiregirls-su-Admiregirls-su-271.jpg"
     ]
     LOGO_URL = "https://i.ibb.co/LX7x3tcB/Logo-Golden-Pepper-Letreiro-1.png"
 
@@ -1078,4 +1078,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
