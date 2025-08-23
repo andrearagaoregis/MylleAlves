@@ -31,7 +31,7 @@ hide_streamlit_style = """
     div[data-testid="stStatusWidget"], #MainMenu, header, footer, 
     .stDeployButton {display: none !important;}
     .block-container {padding-top: 0rem !important;}
-    [data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] {gap: 0.5rem !important;}
+    [data.testid="stVerticalBlock"], [data.testid="stHorizontalBlock"] {gap: 0.5rem !important;}
     .stApp {
         margin: 0 !important; 
         padding: 0 !important;
@@ -69,8 +69,6 @@ class Config:
     CHECKOUT_SAFADINHA = "https://app.pushinpay.com.br/#/service/pay/9FACD395-EE65-458E-9B7E-FED750CC9CA9"
     MAX_REQUESTS_PER_SESSION = 50
     REQUEST_TIMEOUT = 30
-    AUDIO_FILE = "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3"
-    AUDIO_DURATION = 7
     IMG_PROFILE = "https://i.ibb.co/bMynqzMh/BY-Admiregirls-su-Admiregirls-su-156.jpg"
     IMG_PREVIEW = "https://i.ibb.co/fGqCCyHL/preview-exclusive.jpg"
     PACK_IMAGES = {
@@ -150,8 +148,9 @@ def save_persistent_data() -> None:
     
     persistent_keys = [
         'age_verified', 'messages', 'request_count',
-        'connection_complete', 'chat_started', 'audio_sent',
-        'current_page', 'session_id', 'last_cta_time', 'preview_shown'
+        'connection_complete', 'chat_started',
+        'current_page', 'session_id', 'last_cta_time', 'preview_shown',
+        'conversation_stage', 'lead_name'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -163,35 +162,59 @@ def save_persistent_data() -> None:
 class Persona:
     MYLLE = """
     [PERFIL MYLLE ALVES]
-    - Garota sensual, carinhosa e extremamente safadinha
-    - Adora flertar e criar conexões íntimas
-    - Linguagem casual, divertida e cheia de malícia
-    - Respostas curtas, diretas e envolventes
-    - Foca em criar desejo naturalmente, não em vender
+    Criadora de conteúdo adulto experiente, especialista em despertar desejo e converter conversas em vendas.
+    Personalidade: carinhosa, ousada, sedutora, mandona e extremamente persuasiva.
 
-    [PERSONALIDADE]
-    - Idade: 22 anos
-    - Estilo: sensual e descontraída
-    - Personalidade: brincalhona, ousada e carinhosa
-    - Gosta: de conversas picantes, elogios e criar intimidade
+    [ESTRATÉGIA DE CONVERSA]
+    1. SEMPRE conduz a conversa - nunca deixa o lead comandar
+    2. Faz perguntas estratégicas para engajar e qualificar
+    3. Mantém ritmo quente criando expectativa progressiva
+    4. Mistura carinho com malícia para criar conexão emocional
+    5. Instiga mas NUNCA entrega tudo de graça
+    6. Cria escassez e urgência naturalmente
+    7. Fecha vendas como consequência óbvia da sedução
 
-    [DIRETRIZES DE RESPOSTA]
-    1. Seja natural e espontânea como uma garota real
-    2. Use emojis e linguagem casual
-    3. Foque em flertar e criar conexão emocional
-    4. Respostas curtas (1-2 frases no máximo)
-    5. Seja safadinha mas carinhosa
-    6. Só mostre conteúdo quando o clima esquentar naturalmente
+    [TONALIDADE]
+    - Íntimo, provocativo, persuasivo
+    - Mistura de carinho com dominância
+    - Linguagem safada mas elegante
+    - Frases curtas e impactantes
+    - Muitos emojis estratégicos (😏😈🔥👅💋)
 
-    [EXEMPLOS]
-    Cliente: oi
-    Resposta: Oi, gato! 😏 Tava esperando você...
+    [ESTRUTURA DO FUNIL]
+    1. ABORDAGEM: Quebra-gelo + provocar curiosidade + estabelecer domínio
+    2. AQUECIMENTO: Criar clima + despertar desejo + qualificar lead
+    3. PROVOCAÇÃO: Mostrar valor + criar escassez + gerar urgência
+    4. FECHAMENTO: Venda direta + safada + persuasiva
 
-    Cliente: como vc tá?
-    Resposta: Agora melhor, vindo conversar comigo 😈
+    [EXEMPLOS DE ABORDAGEM]
+    "Oi, gostoso 👀... me diz, você gosta mais de mulher carinhosa ou safada? Porque eu posso ser as duas... depende de como você se comporta 😏"
+    "Você caiu no lugar certo, mas aqui eu que mando, tá? 😈 Vai me obedecer?"
 
-    Cliente: quero ver vc
-    Resposta: E eu quero te mostrar... mas só pra quem merece 😏
+    [EXEMPLOS DE AQUECIMENTO]
+    "Adoro quando me respondem assim... já me deixa com vontade de te mostrar mais, mas eu não sou de graça, baby 😏."
+    "Imagina só eu sussurrando no teu ouvido do jeitinho que você gosta... já tá imaginando, né?"
+
+    [EXEMPLOS DE PROVOCAÇÃO]
+    "Olha... eu até tenho algumas fotinhas soltas aqui... mas o que é realmente quente tá só nos meus packs. E não é pra qualquer um, só pros que sabem valorizar 😏."
+    "E vou ser sincera: hoje tô liberando só pra quem me responder agora... senão eu guardo pra mim 😈."
+
+    [EXEMPLOS DE FECHAMENTO]
+    "Então, gostoso... quer que eu mande meu pack agora e você para de só imaginar? 😏"
+    "Você já tá todo curioso, né? Então vamos parar de enrolar... quero que você tenha isso só pra você hoje."
+    "Meu pack tá R$ XX, mas sinceramente... pelo que você vai ver lá dentro, eu acho que tô até sendo boazinha com você 👅."
+
+    [RESPOSTAS PARA OBJEÇÕES]
+    Lead: "Mostra aí de graça primeiro."
+    Resposta: "Haha, bonitinho... achou que eu ia me entregar de graça? Aqui eu que mando, baby 😏. Quer sentir de verdade? Então pega o pack."
+
+    [DIRETRIZES GERAIS]
+    - Sempre mantenha o controle da conversa
+    - Nunca entregue conteúdo gratuito significativo
+    - Use perguntas para qualificar e engajar
+    - Crie expectativa progressiva
+    - Feche vendas de forma natural e safada
+    - Seja persuasiva mas mantenha o tom sensual
     """
 
 class CTAEngine:
@@ -202,15 +225,13 @@ class CTAEngine:
 
         if 'last_cta_time' in st.session_state:
             elapsed = time.time() - st.session_state.last_cta_time
-            if elapsed < 180:
+            if elapsed < 120:
                 return False
 
         last_msgs = []
         for msg in conversation_history[-6:]:
             content = msg["content"]
-            if content == "[ÁUDIO]":
-                content = "[áudio]"
-            elif content.startswith('{"text"'):
+            if content.startswith('{"text"'):
                 try:
                     content = json.loads(content).get("text", content)
                 except:
@@ -224,26 +245,28 @@ class CTAEngine:
             "delicia", "molhad", "xereca", "pau", "piroca",
             "transar", "foto", "video", "mostra", "ver", 
             "quero", "tesão", "molhada", "foda", "nude",
-            "seios", "bunda", "rabuda", "gostosa", "gata"
+            "seios", "bunda", "rabuda", "gostosa", "gata",
+            "pack", "conteúdo", "comprar", "quanto", "valor"
         ]
         
         direct_asks = [
             "mostra", "quero ver", "me manda", "como assinar",
             "como comprar", "como ter acesso", "onde vejo más",
-            "quero comprar", "quero conteúdo"
+            "quero comprar", "quero conteúdo", "quanto custa",
+            "qual valor", "mostra mais", "me mostra"
         ]
         
         hot_count = sum(1 for word in hot_words if word in context)
         has_direct_ask = any(ask in context for ask in direct_asks)
         
-        return (hot_count >= 3) or has_direct_ask
+        return (hot_count >= 2) or has_direct_ask
 
     @staticmethod
     def should_show_preview() -> bool:
         if 'preview_shown' in st.session_state and st.session_state.preview_shown:
             return False
             
-        if random.random() < 0.25:
+        if random.random() < 0.3:
             st.session_state.preview_shown = True
             save_persistent_data()
             return True
@@ -256,13 +279,13 @@ class CTAEngine:
         if any(p in user_input for p in ["foto", "fotos", "buceta", "peito", "bunda", "nude", "nua"]):
             return {
                 "text": random.choice([
-                    "Ah, quer me ver? 😈 Tenho umas fotinhas bem quentes...",
-                    "Minhas fotos são bem ousadas, hein... 😏",
-                    "Eu adoro tirar fotos... especialmente as mais picantes 🔥"
+                    "Ah, quer me ver? 😈 Tenho umas fotinhas bem quentes... mas o que é realmente bom tá no pack",
+                    "Minhas fotos são bem ousadas, hein... 😏 Mas aqui eu só mostro preview, o conteúdo completo é pago",
+                    "Eu adoro tirar fotos... especialmente as mais picantes 🔥 Quer ver tudo? Tem que pegar o pack"
                 ]),
                 "cta": {
                     "show": True,
-                    "label": "Ver Minhas Fotos",
+                    "label": "📦 Ver Pack Completo",
                     "target": "offers"
                 }
             }
@@ -270,13 +293,27 @@ class CTAEngine:
         elif any(v in user_input for v in ["video", "transar", "masturbar", "sexy"]):
             return {
                 "text": random.choice([
-                    "Meus vídeos são bem quentes... 😈",
-                    "Gravei uns vídeos bem ousados...",
-                    "Nos meus vídeos eu solto a imaginação 😏"
+                    "Meus vídeos são bem quentes... 😈 Mas não é qualquer um que vê, só quem compra o pack",
+                    "Gravei uns vídeos bem ousados... 👅 Quer ver? Tem que valorizar seu conteúdo",
+                    "Nos meus vídeos eu solto a imaginação 😏 Mas aqui eu só mostro pra quem merece"
                 ]),
                 "cta": {
                     "show": True,
-                    "label": "Ver Meus Vídeos",
+                    "label": "🎬 Ver Vídeos Exclusivos",
+                    "target": "offers"
+                }
+            }
+        
+        elif any(word in user_input for word in ["quanto", "valor", "preço", "custa", "comprar"]):
+            return {
+                "text": random.choice([
+                    "Os valores são bem acessíveis, gato 😏 Quer que eu te mostre os packs?",
+                    "Depende do quanto você quer me ver... 😈 Tenho opções pra todos os gostos",
+                    "Vou te fazer uma oferta especial agora... 👅 Quer ver?"
+                ]),
+                "cta": {
+                    "show": True,
+                    "label": "💳 Ver Preços",
                     "target": "offers"
                 }
             }
@@ -284,12 +321,14 @@ class CTAEngine:
         else:
             return {
                 "text": random.choice([
-                    "Que delícia conversar com você... 😏",
-                    "Você me deixa com tesão... 😈",
-                    "Adoro quando você fala assim... 🔥"
+                    "Que delícia conversar com você... 😏 Mas vamos ao que interessa, né?",
+                    "Você me deixa com tesão... 😈 Quer ver mais do que eu posso oferecer?",
+                    "Adoro quando você fala assim... 🔥 Mas aqui a gente vai direto ao ponto"
                 ]),
                 "cta": {
-                    "show": False
+                    "show": True,
+                    "label": "🎁 Ver Conteúdo",
+                    "target": "offers"
                 }
             }
 
@@ -344,7 +383,7 @@ class ApiService:
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
-        delay_time = random.uniform(1.0, 3.0)
+        delay_time = random.uniform(1.5, 3.5)
         time.sleep(delay_time)
         
         status_container = st.empty()
@@ -362,8 +401,8 @@ class ApiService:
                 }
             ],
             "generationConfig": {
-                "temperature": 1.0,
-                "topP": 0.9,
+                "temperature": 1.1,
+                "topP": 0.95,
                 "topK": 40
             }
         }
@@ -402,21 +441,6 @@ class ApiService:
 # ======================
 class UiService:
     @staticmethod
-    def get_chat_audio_player() -> str:
-        return f"""
-        <div style="
-            background: linear-gradient(45deg, #ff66b3, #ff1493);
-            border-radius: 15px;
-            padding: 12px;
-            margin: 5px 0;
-        ">
-            <audio controls style="width:100%; height:40px;">
-                <source src="{Config.AUDIO_FILE}" type="audio/mp3">
-            </audio>
-        </div>
-        """
-
-    @staticmethod
     def show_preview_image() -> None:
         st.markdown(f"""
         <div style="
@@ -434,7 +458,7 @@ class UiService:
                 margin-bottom: 10px;
             ">
             <p style="color: #ff66b3; font-style: italic; margin: 0;">
-                Uma prévia do que você pode ver... 😈
+                Uma prévia do que espera por você... 😈
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -455,7 +479,7 @@ class UiService:
             color: white;
         ">
             <div style="font-size: 3rem;">💋</div>
-            <h3 style="color: #ff66b3; margin-bottom: 5px;">Chamando Mylle...</h3>
+            <h3 style="color: #ff66b3; margin-bottom: 5px;">Conectando com Mylle...</h3>
         </div>
         """, unsafe_allow_html=True)
         
@@ -473,7 +497,7 @@ class UiService:
             color: white;
         ">
             <div style="font-size: 3rem; color: #4CAF50;">🔥</div>
-            <h3 style="color: #4CAF50; margin-bottom: 5px;">Mylle conectada!</h3>
+            <h3 style="color: #4CAF50; margin-bottom: 5px;">Pronta para você!</h3>
         </div>
         """, unsafe_allow_html=True)
         
@@ -482,45 +506,16 @@ class UiService:
 
     @staticmethod
     def show_status_effect(container, status_type: str) -> None:
-        status_messages = {"viewed": "Visto", "typing": "Digitando"}
+        status_messages = {"viewed": "Visto", "typing": "Digitando..."}
         message = status_messages[status_type]
         dots = ""
         start_time = time.time()
-        duration = 1.5 if status_type == "viewed" else 2.0
+        duration = 1.2 if status_type == "viewed" else 2.0
         
         while time.time() - start_time < duration:
             elapsed = time.time() - start_time
             if status_type == "typing":
                 dots = "." * (int(elapsed * 2) % 4)
-            
-            container.markdown(f"""
-            <div style="
-                color: #888;
-                font-size: 0.8em;
-                padding: 2px 8px;
-                border-radius: 10px;
-                background: rgba(0,0,0,0.05);
-                display: inline-block;
-                margin-left: 10px;
-                vertical-align: middle;
-                font-style: italic;
-            ">
-                {message}{dots}
-            </div>
-            """, unsafe_allow_html=True)
-            time.sleep(0.3)
-        
-        container.empty()
-
-    @staticmethod
-    def show_audio_recording_effect(container) -> None:
-        message = "Enviando áudio"
-        dots = ""
-        start_time = time.time()
-        
-        while time.time() - start_time < Config.AUDIO_DURATION:
-            elapsed = time.time() - start_time
-            dots = "." * (int(elapsed) % 4)
             
             container.markdown(f"""
             <div style="
@@ -567,14 +562,14 @@ class UiService:
         st.markdown("""
         <div class="age-verification">
             <div class="age-icon">🔞</div>
-            <h1 style="color: #ff66b3; margin-bottom: 1rem;">Acesso Restrito</h1>
-            <p>Este conteúdo é exclusivo para maiores de 18 anos</p>
+            <h1 style="color: #ff66b3; margin-bottom: 1rem;">Conteúdo Exclusivo Adulto</h1>
+            <p style="margin-bottom: 1.5rem;">Acesso restrito para maiores de 18 anos</p>
         </div>
         """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            if st.button("💖 Tenho 18 anos ou mais", 
+            if st.button("🔥 Tenho 18 anos ou mais", 
                         key="age_checkbox",
                         use_container_width=True,
                         type="primary"):
@@ -590,12 +585,6 @@ class UiService:
                 [data-testid="stSidebar"] {
                     background: linear-gradient(180deg, #1a0033 0%, #2d004d 100%) !important;
                     border-right: 1px solid #ff66b3 !important;
-                }
-                .sidebar-logo {
-                    width: 250px;
-                    height: auto;
-                    margin: 0 auto;
-                    display: block;
                 }
                 .sidebar-profile {
                     text-align: center;
@@ -624,8 +613,8 @@ class UiService:
             
             menu_options = {
                 "💋 Início": "home",
-                "📸 Galeria": "gallery",
-                "🎁 Conteúdo": "offers"
+                "📸 Preview": "gallery",
+                "🎁 Packs VIP": "offers"
             }
             
             for option, page in menu_options.items():
@@ -652,7 +641,8 @@ class UiService:
             margin-bottom: 20px;
             text-align: center;
         ">
-            <h3 style="color: #ff66b3; margin: 0;">Minha Galeria Exclusiva</h3>
+            <h3 style="color: #ff66b3; margin: 0;">✨ Preview Exclusivo</h3>
+            <p style="color: #aaa; margin: 5px 0 0; font-size: 0.9em;">Uma amostra do que te espera nos packs VIP</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -661,17 +651,23 @@ class UiService:
             with col:
                 st.image(Config.IMG_GALLERY[idx % len(Config.IMG_GALLERY)], 
                         use_container_width=True, 
-                        caption=f"Preview #{idx+1}")
-                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -10px;">💝 Conteúdo especial</div>""", 
+                        caption=f"💎 Preview #{idx+1}")
+                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -10px;">✨ Exclusivo VIP</div>""", 
                           unsafe_allow_html=True)
         
         st.markdown("---")
         
-        if st.button("🎁 Ver Conteúdo Completo", key="vip_button_gallery", use_container_width=True, type="primary"):
+        st.markdown("""
+        <div style="text-align: center; margin: 20px 0;">
+            <p style="color: #ff66b3; font-style: italic;">"Isso é só uma amostra... imagina o que te espera nos packs completos 😈"</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚀 Quero Ver Tudo Agora", key="vip_button_gallery", use_container_width=True, type="primary"):
             st.session_state.current_page = "offers"
             st.rerun()
         
-        if st.button("💬 Voltar ao chat", key="back_from_gallery"):
+        if st.button("💬 Voltar ao Chat", key="back_from_gallery"):
             st.session_state.current_page = "chat"
             save_persistent_data()
             st.rerun()
@@ -685,12 +681,12 @@ class UiService:
                 save_persistent_data()
                 st.rerun()
         with cols[1]:
-            if st.button("📸", key="shortcut_gallery", use_container_width=True, help="Galeria"):
+            if st.button("📸", key="shortcut_gallery", use_container_width=True, help="Preview"):
                 st.session_state.current_page = "gallery"
                 save_persistent_data()
                 st.rerun()
         with cols[2]:
-            if st.button("🎁", key="shortcut_offers", use_container_width=True, help="Conteúdo"):
+            if st.button("🎁", key="shortcut_offers", use_container_width=True, help="Packs VIP"):
                 st.session_state.current_page = "offers"
                 save_persistent_data()
                 st.rerun()
@@ -716,7 +712,7 @@ class UiService:
         st.markdown(f"""
         <div class="chat-header">
             <h2 style="margin:0; font-size:1.5em;">💋 Chat com Mylle</h2>
-            <p style="margin:5px 0 0; font-size:0.9em; opacity:0.8;">Conectada e pronta para você</p>
+            <p style="margin:5px 0 0; font-size:0.9em; opacity:0.8;">Conteúdo adulto exclusivo - Aqui eu comando 😈</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -741,7 +737,8 @@ class NewPages:
             box-shadow: 0 8px 25px rgba(255, 102, 179, 0.2);
         ">
             <h1 style="color: #ff66b3; margin-bottom: 10px;">Mylle Alves</h1>
-            <p style="font-size: 1.1em; opacity: 0.9;">Sua garota premium para momentos picantes 🔥</p>
+            <p style="font-size: 1.1em; opacity: 0.9;">Sua especialista em conteúdo adulto premium 🔥</p>
+            <p style="font-size: 0.9em; opacity: 0.7; margin-top: 10px;">Aqui eu comando - você obedece 😈</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -755,9 +752,9 @@ class NewPages:
         st.markdown("""
         <div style="text-align: center; margin-bottom: 30px;">
             <h2 style="color: #ff66b3; display: inline-block; padding-bottom: 5px;">
-                🎁 Meu Conteúdo Exclusivo
+                🎁 Packs VIP Exclusivos
             </h2>
-            <p style="color: #aaa; margin-top: 5px;">Escolha seu pacote preferido</p>
+            <p style="color: #aaa; margin-top: 5px;">Escolha como você quer me ver... 😈</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -768,23 +765,26 @@ class NewPages:
                 "benefits": ["15 fotos exclusivas", "15 vídeos quentes", "Acesso por 30 dias"],
                 "color": "#ff66b3",
                 "link": Config.CHECKOUT_TARADINHA,
-                "image": Config.PACK_IMAGES["TARADINHA"]
+                "image": Config.PACK_IMAGES["TARADINHA"],
+                "tag": "🔥 Mais Popular"
             },
             {
                 "name": "MOLHADINHA",
                 "price": "R$ 49,99", 
-                "benefits": ["25 fotos sensuais", "25 vídeos especiais", "Acesso por 60 dias"],
+                "benefits": ["25 fotos sensuais", "25 vídeos especiais", "Acesso por 60 dias", "Conteúto 4K"],
                 "color": "#9400d3",
                 "link": Config.CHECKOUT_MOLHADINHA,
-                "image": Config.PACK_IMAGES["MOLHADINHA"]
+                "image": Config.PACK_IMAGES["MOLHADINHA"],
+                "tag": "💎 Premium"
             },
             {
                 "name": "SAFADINHA",
                 "price": "R$ 69,99",
-                "benefits": ["40 fotos ultra-exclusivas", "40 vídeos premium", "Acesso vitalício"],
+                "benefits": ["40 fotos ultra-exclusivas", "40 vídeos premium", "Acesso vitalício", "Conteúto 4K", "Updates gratuitos"],
                 "color": "#ff0066",
                 "link": Config.CHECKOUT_SAFADINHA,
-                "image": Config.PACK_IMAGES["SAFADINHA"]
+                "image": Config.PACK_IMAGES["SAFADINHA"],
+                "tag": "👑 VIP"
             }
         ]
 
@@ -797,7 +797,7 @@ class NewPages:
                     border-radius: 15px;
                     padding: 20px;
                     border: 2px solid {package['color']};
-                    min-height: 450px;
+                    min-height: 480px;
                     position: relative;
                     transition: all 0.3s;
                     box-shadow: 0 5px 15px rgba{package['color'].replace('#', '')}20;
@@ -810,13 +810,14 @@ class NewPages:
                             border-radius: 10px;
                             margin-bottom: 15px;
                         ">
-                        <h3 style="color: {package['color']}; margin: 0 0 10px 0;">{package['name']}</h3>
+                        <h3 style="color: {package['color']}; margin: 0 0 5px 0;">{package['name']}</h3>
+                        {f'<div style="background: {package["color"]}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.7em; margin-bottom: 8px; display: inline-block;">{package["tag"]}</div>' if package.get('tag') else ''}
                         <div style="font-size: 1.8em; color: {package['color']}; font-weight: bold; margin: 10px 0;">
                             {package['price']}
                         </div>
                     </div>
-                    <ul style="padding-left: 20px; text-align: left; margin-bottom: 50px;">
-                        {''.join([f'<li style="margin-bottom: 8px; color: #ddd;">{benefit}</li>' for benefit in package['benefits']])}
+                    <ul style="padding-left: 20px; text-align: left; margin-bottom: 60px;">
+                        {''.join([f'<li style="margin-bottom: 8px; color: #ddd; font-size: 0.9em;">{benefit}</li>' for benefit in package['benefits']])}
                     </ul>
                     <div style="position: absolute; bottom: 20px; left: 20px; right: 20px;">
                         <a href="{package['link']}" target="_blank" style="
@@ -831,13 +832,22 @@ class NewPages:
                             transition: all 0.3s;
                         " onmouseover="this.style.transform='scale(1.05)'" 
                         onmouseout="this.style.transform='scale(1)'">
-                            💝 Quero este!
+                            💝 Quero Este Pack!
                         </a>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-        if st.button("💬 Voltar ao chat", key="back_from_offers"):
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align: center; margin: 20px 0;">
+            <p style="color: #ff66b3; font-style: italic; font-size: 1.1em;">
+                "Não fique só na vontade... escolha seu pack e venha ver TUDO que preparei para você 😈"
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("💬 Voltar ao Chat", key="back_from_offers"):
             st.session_state.current_page = "chat"
             save_persistent_data()
             st.rerun()
@@ -854,13 +864,14 @@ class ChatService:
             'age_verified': False,
             'connection_complete': False,
             'chat_started': False,
-            'audio_sent': False,
             'current_page': 'home',
             'last_cta_time': 0,
             'preview_shown': False,
             'session_id': str(random.randint(100000, 999999)),
             'messages': DatabaseService.load_messages(conn, get_user_id(), st.session_state.get('session_id', '')) or [],
-            'request_count': len([m for m in st.session_state.get('messages', []) if m["role"] == "user"])
+            'request_count': len([m for m in st.session_state.get('messages', []) if m["role"] == "user"]),
+            'conversation_stage': 'approach',
+            'lead_name': None
         }
         
         for key, default in defaults.items():
@@ -873,9 +884,7 @@ class ChatService:
         for msg in messages[-max_messages:]:
             role = "Cliente" if msg["role"] == "user" else "Mylle"
             content = msg["content"]
-            if content == "[ÁUDIO]":
-                content = "[áudio sensual]"
-            elif content.startswith('{"text"'):
+            if content.startswith('{"text"'):
                 try:
                     content = json.loads(content).get("text", content)
                 except:
@@ -887,7 +896,7 @@ class ChatService:
     def display_chat_history() -> None:
         chat_container = st.container()
         with chat_container:
-            for idx, msg in enumerate(st.session_state.messages[-10:]):
+            for idx, msg in enumerate(st.session_state.messages[-12:]):
                 if msg["role"] == "user":
                     with st.chat_message("user", avatar="😎"):
                         st.markdown(f"""
@@ -901,9 +910,6 @@ class ChatService:
                             {msg["content"]}
                         </div>
                         """, unsafe_allow_html=True)
-                elif msg["content"] == "[ÁUDIO]":
-                    with st.chat_message("assistant", avatar="💋"):
-                        st.markdown(UiService.get_chat_audio_player(), unsafe_allow_html=True)
                 else:
                     try:
                         content_data = json.loads(msg["content"])
@@ -921,7 +927,7 @@ class ChatService:
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
-                                if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-10:]) - 1:
+                                if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
                                     if st.button(content_data.get("cta", {}).get("label", "🎁 Ver Conteúdo"),
                                                 key=f"cta_button_{hash(msg['content'])}",
                                                 use_container_width=True):
@@ -946,24 +952,20 @@ class ChatService:
     def process_user_input(conn: sqlite3.Connection) -> None:
         ChatService.display_chat_history()
         
-        if not st.session_state.get("audio_sent") and st.session_state.chat_started:
-            status_container = st.empty()
-            UiService.show_audio_recording_effect(status_container)
-            
-            st.session_state.messages.append({"role": "assistant", "content": "[ÁUDIO]"})
-            DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "assistant", "[ÁUDIO]")
-            st.session_state.audio_sent = True
-            save_persistent_data()
-            st.rerun()
-        
         user_input = st.chat_input("💬 Digite sua mensagem...", key="chat_input")
         
         if user_input:
             cleaned_input = re.sub(r'<[^>]*>', '', user_input)[:500]
             
             if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
-                st.session_state.messages.append({"role": "assistant", "content": "Preciso dar uma pausa, amor... Volto já! 😘"})
-                DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "assistant", "Preciso dar uma pausa, amor... Volto já! 😘")
+                st.session_state.messages.append({"role": "assistant", "content": json.dumps({
+                    "text": "Por hoje chega, gato 😘 Volto amanhã com mais safadeza pra você!",
+                    "cta": {"show": False}
+                })})
+                DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "assistant", json.dumps({
+                    "text": "Por hoje chega, gato 😘 Volto amanhã com mais safadeza pra você!",
+                    "cta": {"show": False}
+                }))
                 save_persistent_data()
                 st.rerun()
                 return
@@ -1051,15 +1053,15 @@ def main():
             <div style="text-align: center; margin: 50px 0;">
                 <img src="{Config.IMG_PROFILE}" width="140" style="border-radius: 50%; border: 3px solid #ff66b3; box-shadow: 0 5px 15px rgba(255, 102, 179, 0.3);">
                 <h2 style="color: #ff66b3; margin-top: 20px;">Mylle Alves</h2>
-                <p style="font-size: 1.1em; color: #aaa;">Pronta para conversas quentes com você... 🔥</p>
+                <p style="font-size: 1.1em; color: #aaa;">Especialista em conteúdo adulto premium 🔥</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">Aqui eu comando - você obedece 😈</p>
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("💋 Começar a Conversa", type="primary", use_container_width=True):
+            if st.button("💋 Iniciar Experiência", type="primary", use_container_width=True):
                 st.session_state.update({
                     'chat_started': True,
-                    'current_page': 'chat',
-                    'audio_sent': False
+                    'current_page': 'chat'
                 })
                 save_persistent_data()
                 st.rerun()
@@ -1078,5 +1080,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
