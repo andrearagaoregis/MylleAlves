@@ -132,14 +132,18 @@ class Config:
     ]
     SOCIAL_LINKS = {
         "instagram": "https://instagram.com/myllealves",
+        "facebook": "https://facebook.com/myllealves",
         "onlyfans": "https://onlyfans.com/myllealves",
         "telegram": "https://t.me/myllealves",
+        "tiktok": "https://www.tiktok.com/@myllealves",
         "twitter": "https://twitter.com/myllealves"
     }
     SOCIAL_ICONS = {
         "instagram": "📸 Instagram",
+        "facebook": "📘 Facebook",
         "onlyfans": "💎 OnlyFans",
         "telegram": "✈️ Telegram",
+        "tiktok": "🎵 TikTok",
         "twitter": "🐦 Twitter"
     }
     
@@ -665,7 +669,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE: Mantenha respostas curtas (máximo 2-3 frases). Colete informações como nome e localização naturalmente. Sugira seguir nas redes sociais ocasionalmente. Use áudios em 15% das respostas para maior realismo.\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"audio\": \"chave_do_audio_opcional\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE[...]
                 }
             ],
             "generationConfig": {
@@ -918,11 +922,11 @@ class UiService:
             
             st.markdown("---")
             
-            # Botões de redes sociais (estilo igual ao menu)
+            # Botões de redes sociais (estilo igual ao menu) - inclui Instagram, Facebook, OnlyFans, Telegram, TikTok, Twitter
             for platform, url in Config.SOCIAL_LINKS.items():
-                if st.button(Config.SOCIAL_ICONS[platform], 
-                           key=f"sidebar_{platform}",
-                           use_container_width=True):
+                # Mostra o botão com o rótulo definido em SOCIAL_ICONS
+                label = Config.SOCIAL_ICONS.get(platform, platform.capitalize())
+                if st.button(label, key=f"sidebar_{platform}", use_container_width=True):
                     # Abrir link em nova aba
                     js = f"window.open('{url}', '_blank');"
                     st.components.v1.html(f"<script>{js}</script>")
@@ -1109,7 +1113,8 @@ class NewPages:
         cols = st.columns(3)
         for idx, (col, package) in enumerate(zip(cols, packages)):
             with col:
-                st.markdown(f"""
+                # Cartão do pacote com layout limpo e seguro para f-strings
+                card_html = f"""
                 <div style="
                     background: rgba(30, 0, 51, 0.3);
                     border-radius: 15px;
@@ -1118,7 +1123,6 @@ class NewPages:
                     min-height: 480px;
                     position: relative;
                     transition: all 0.3s;
-                    box-shadow: 0 5px 15px rgba{package['color'].replace('#', '')}20;
                 ">
                     <div style="text-align: center; margin-bottom: 15px;">
                         <img src="{package['image']}" style="
@@ -1129,7 +1133,7 @@ class NewPages:
                             margin-bottom: 15px;
                         ">
                         <h3 style="color: {package['color']}; margin: 0 0 5px 0;">{package['name']}</h3>
-                        {f'<div style="background: {package["color"]}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.7em; margin-bottom: 8px; display: inline-block;">{package["tag"]}</div>' if package.get('tag') else ''}
+                        <div style="background: {package['color']}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; margin-top: 8px; display: inline-block;">{package['tag']}</div>
                         <div style="font-size: 1.8em; color: {package['color']}; font-weight: bold; margin: 10px 0;">
                             {package['price']}
                         </div>
@@ -1154,7 +1158,8 @@ class NewPages:
                         </a>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("""
