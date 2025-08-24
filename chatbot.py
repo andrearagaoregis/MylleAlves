@@ -10,9 +10,11 @@ import sqlite3
 import re
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from functools import lru_cache
+import hashlib
+from textblob import TextBlob  # Para análise de sentimento
 
 # ======================
 # CONFIGURAÇÃO INICIAL DO STREAMLIT
@@ -85,7 +87,12 @@ class Config:
     CHECKOUT_VIP_1ANO = "https://checkout.exemplo.com/vip-1ano"
     MAX_REQUESTS_PER_SESSION = 30
     REQUEST_TIMEOUT = 30
-    AUDIO_FILE = "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3"
+    AUDIO_FILES = {
+        "default": "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3",
+        "excited": "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_excited.mp3",
+        "intimate": "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_intimate.mp3",
+        "teasing": "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_teasing.mp3"
+    }
     AUDIO_DURATION = 7
     IMG_PROFILE = "https://i.ibb.co/ks5CNrDn/IMG-9256.jpg"
     IMG_GALLERY = [
@@ -125,6 +132,27 @@ class PersistentState:
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        # Tabela para cache de respostas
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS response_cache (
+                query_hash TEXT PRIMARY KEY,
+                response TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabela para interesses do usuário
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_interests (
+                user_id TEXT,
+                interest TEXT,
+                strength REAL DEFAULT 1.0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, interest)
+            )
+        ''')
+        
         self.conn.commit()
 
     def save_state(self, user_id, data):
@@ -140,6 +168,41 @@ class PersistentState:
         cursor.execute('SELECT session_data FROM global_state WHERE user_id = ?', (user_id,))
         result = cursor.fetchone()
         return json.loads(result[0]) if result else None
+    
+    def cache_response(self, query_hash, response):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO response_cache (query_hash, response)
+            VALUES (?, ?)
+        ''', (query_hash, json.dumps(response)))
+        self.conn.commit()
+    
+    def get_cached_response(self, query_hash, max_age_hours=24):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT response FROM response_cache 
+            WHERE query_hash = ? AND datetime(created_at) >= datetime('now', ?)
+        ''', (query_hash, f'-{max_age_hours} hours'))
+        result = cursor.fetchone()
+        return json.loads(result[0]) if result else None
+    
+    def update_user_interest(self, user_id, interest, increment=1.0):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO user_interests (user_id, interest, strength, last_updated)
+            VALUES (?, ?, COALESCE((SELECT strength FROM user_interests WHERE user_id = ? AND interest = ?), 0) + ?, CURRENT_TIMESTAMP)
+        ''', (user_id, interest, user_id, interest, increment))
+        self.conn.commit()
+    
+    def get_user_interests(self, user_id, limit=5):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT interest, strength FROM user_interests 
+            WHERE user_id = ? 
+            ORDER BY strength DESC 
+            LIMIT ?
+        ''', (user_id, limit))
+        return {row[0]: row[1] for row in cursor.fetchall()}
 
 def get_user_id():
     if 'user_id' not in st.session_state:
@@ -167,7 +230,8 @@ def save_persistent_data():
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started', 'audio_sent',
         'current_page', 'show_vip_offer', 'session_id',
-        'last_cta_time'  # Novo campo adicionado
+        'last_cta_time', 'user_interests', 'audio_count',
+        'last_message_time', 'user_mood', 'user_preferences'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -191,6 +255,8 @@ class Persona:
     1. Analise o histórico da conversa para entender o contexto
     2. Só ofereça conteúdo quando o clima estiver quente
     3. Use CTAs inteligentes baseados no que o cliente está pedindo
+    4. Seja natural, com erros gramaticais ocasionais e interjeições
+    5. Adapte-se ao humor e interesses do usuário
 
     [EXEMPLOS CONTEXTUAIS]
     1. Quando o histórico mostra clima sexual:
@@ -205,7 +271,8 @@ class Persona:
         "show": true,
         "label": "Ver Fotos Quentes",
         "target": "offers"
-      }
+      },
+      "audio_type": "teasing"
     }
     ```
 
@@ -219,7 +286,8 @@ class Persona:
         "show": true,
         "label": "Ver Vídeos Exclusivos",
         "target": "offers"
-      }
+      },
+      "audio_type": "excited"
     }
     ```
 
@@ -236,6 +304,82 @@ class Persona:
     }
     ```
     """
+
+class HumanizationEngine:
+    @staticmethod
+    def humanize_text(text):
+        """Aplica humanização ao texto com erros gramaticais e interjeições"""
+        # 15% de chance de adicionar erros gramaticais
+        if random.random() < 0.15:
+            text = HumanizationEngine.add_grammar_errors(text)
+        
+        # 25% de chance de adicionar interjeições
+        if random.random() < 0.25:
+            text = HumanizationEngine.add_interjections(text)
+        
+        # 25% de chance de fragmentar mensagens longas
+        if len(text.split()) > 8 and random.random() < 0.25:
+            text = HumanizationEngine.fragment_message(text)
+            
+        return text
+    
+    @staticmethod
+    def add_grammar_errors(text):
+        """Adiciona erros gramaticais naturais"""
+        errors = [
+            (" você ", " vc "),
+            (" para ", " pra "),
+            (" estou ", " to "),
+            (" está ", " ta "),
+            (" vou ", " vou "),
+            (" quero ", " quero "),
+            (" não ", " nao "),
+            (" mas ", " mas "),
+            (" porque ", " pq "),
+            (" também ", " tb "),
+        ]
+        
+        for correct, error in errors:
+            if random.random() < 0.3:  # 30% de chance de aplicar cada erro
+                text = text.replace(correct, error)
+                
+        return text
+    
+    @staticmethod
+    def add_interjections(text):
+        """Adiciona interjeições no início da frase"""
+        interjections = [
+            "Ah ",
+            "Hm ",
+            "Nossa ",
+            "Ai ",
+            "Poxa ",
+            "Aff ",
+            "Uau ",
+        ]
+        
+        if random.random() < 0.3:  # 30% de chance de adicionar interjeição
+            text = random.choice(interjections) + text.lower()
+            
+        return text
+    
+    @staticmethod
+    def fragment_message(text):
+        """Fragmenta mensagens longas em partes menores"""
+        words = text.split()
+        if len(words) > 8:
+            # Divide a mensagem em duas partes
+            split_point = random.randint(4, len(words) - 3)
+            part1 = " ".join(words[:split_point])
+            part2 = " ".join(words[split_point:])
+            
+            # 50% de chance de adicionar reticências
+            if random.random() < 0.5:
+                part1 += "..."
+                
+            return f"{part1}\n\n{part2}"
+        
+        return text
 
 class CTAEngine:
     @staticmethod
@@ -326,6 +470,62 @@ class CTAEngine:
                 }
             }
 
+class SentimentAnalyzer:
+    @staticmethod
+    def analyze(text):
+        """Analisa o sentimento do texto usando TextBlob"""
+        try:
+            blob = TextBlob(text)
+            # Retorna polaridade (-1 a 1) e subjetividade (0 a 1)
+            return {
+                "polarity": blob.sentiment.polarity,
+                "subjectivity": blob.sentiment.subjectivity
+            }
+        except:
+            return {"polarity": 0, "subjectivity": 0}
+    
+    @staticmethod
+    def get_mood_label(polarity):
+        """Converte polaridade em rótulo de humor"""
+        if polarity > 0.5:
+            return "muito_feliz"
+        elif polarity > 0.1:
+            return "feliz"
+        elif polarity < -0.5:
+            return "muito_chateado"
+        elif polarity < -0.1:
+            return "chateado"
+        else:
+            return "neutro"
+
+class InterestExtractor:
+    @staticmethod
+    def extract_interests(text):
+        """Extrai interesses do texto do usuário"""
+        interests = {}
+        text = text.lower()
+        
+        # Mapeamento de palavras-chave para interesses
+        interest_map = {
+            "buceta": ["buceta", "xota", "xoxota", "vagina", "ppk"],
+            "peito": ["peito", "seio", "seios", "peitos", "mama", "mamas"],
+            "bunda": ["bunda", "raba", "rabão", "nádegas", "glúteos"],
+            "foto": ["foto", "fotos", "fotografia", "imagem", "ensaio"],
+            "video": ["video", "vídeo", "filme", "gravação", "gravacao"],
+            "transar": ["transar", "foder", "sexo", "relação", "relacao", "trepar"],
+            "masturbar": ["masturbar", "punheta", "se tocar", "se masturbar"],
+            "oral": ["oral", "chupar", "boquete", "mamar", "chupada"],
+            "anal": ["anal", "cu", "ânus", "anus", "retal"],
+            "roupa": ["roupa", "lingerie", "sutia", "calcinha", "sutiã", "sutia"],
+        }
+        
+        for interest, keywords in interest_map.items():
+            for keyword in keywords:
+                if keyword in text:
+                    interests[interest] = interests.get(interest, 0) + 1
+                    
+        return interests
+
 # ======================
 # SERVIÇOS DE BANCO DE DADOS
 # ======================
@@ -371,16 +571,30 @@ class DatabaseService:
 # ======================
 class ApiService:
     @staticmethod
-    @lru_cache(maxsize=100)
     def ask_gemini(prompt: str, session_id: str, conn) -> dict:
-        if any(word in prompt.lower() for word in ["vip", "quanto custa", "comprar", "assinar"]):
-            return ApiService._call_gemini_api(prompt, session_id, conn)
+        # Gerar hash da consulta para cache
+        query_hash = hashlib.md5(f"{prompt}_{session_id}".encode()).hexdigest()
         
-        return ApiService._call_gemini_api(prompt, session_id, conn)
+        # Verificar cache primeiro
+        db = PersistentState()
+        cached_response = db.get_cached_response(query_hash)
+        if cached_response:
+            return cached_response
+        
+        if any(word in prompt.lower() for word in ["vip", "quanto custa", "comprar", "assinar"]):
+            response = ApiService._call_gemini_api(prompt, session_id, conn)
+        else:
+            response = ApiService._call_gemini_api(prompt, session_id, conn)
+        
+        # Armazenar no cache
+        db.cache_response(query_hash, response)
+        
+        return response
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn) -> dict:
-        delay_time = random.uniform(3, 8)
+        # Delay aleatório entre 1-5 minutos para simular humanização
+        delay_time = random.uniform(60, 300)
         time.sleep(delay_time)
         
         status_container = st.empty()
@@ -389,12 +603,18 @@ class ApiService:
         
         conversation_history = ChatService.format_conversation_history(st.session_state.messages)
         
+        # Adicionar informações de interesse e humor ao prompt
+        user_interests = st.session_state.get('user_interests', {})
+        user_mood = st.session_state.get('user_mood', 'neutro')
+        
+        interests_text = ", ".join([f"{k}:{v}" for k, v in user_interests.items()]) if user_interests else "nenhum interesse detectado"
+        
         headers = {'Content-Type': 'application/json'}
         data = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.PALOMA}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
+                    "parts": [{"text": f"{Persona.PALOMA}\n\nHistórico da Conversa:\n{conversation_history}\n\nInteresses do usuário: {interests_text}\nHumor do usuário: {user_mood}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }},\n  \"audio_type\": \"tipo_de_audio\"\n}}"}]
                 }
             ],
             "generationConfig": {
@@ -411,9 +631,13 @@ class ApiService:
             
             try:
                 if '```json' in gemini_response:
-                    resposta = json.loads(gemini_response.split('```json
+                    resposta = json.loads(gemini_response.split('```json')[1].split('```')[0].strip())
                 else:
                     resposta = json.loads(gemini_response)
+                
+                # Aplicar humanização ao texto
+                if "text" in resposta:
+                    resposta["text"] = HumanizationEngine.humanize_text(resposta["text"])
                 
                 if resposta.get("cta", {}).get("show"):
                     if not CTAEngine.should_show_cta(st.session_state.messages):
@@ -422,20 +646,26 @@ class ApiService:
                         st.session_state.last_cta_time = time.time()  # Registrar quando CTA foi mostrado
                 
                 return resposta
-            
+                
             except json.JSONDecodeError:
-                return {"text": gemini_response, "cta": {"show": False}}
+                # Fallback para resposta humanizada em caso de erro
+                fallback_response = CTAEngine.generate_response(prompt)
+                fallback_response["text"] = HumanizationEngine.humanize_text(fallback_response["text"])
+                return fallback_response
                 
         except Exception as e:
             st.error(f"Erro na API: {str(e)}")
-            return {"text": "Vamos continuar isso mais tarde...", "cta": {"show": False}}
+            fallback_response = {"text": "Vamos continuar isso mais tarde...", "cta": {"show": False}}
+            fallback_response["text"] = HumanizationEngine.humanize_text(fallback_response["text"])
+            return fallback_response
 
 # ======================
 # SERVIÇOS DE INTERFACE
 # ======================
 class UiService:
     @staticmethod
-    def get_chat_audio_player():
+    def get_chat_audio_player(audio_type="default"):
+        audio_file = Config.AUDIO_FILES.get(audio_type, Config.AUDIO_FILES["default"])
         return f"""
         <div style="
             background: linear-gradient(45deg, #ff66b3, #ff1493);
@@ -444,15 +674,15 @@ class UiService:
             margin: 5px 0;
         ">
             <audio controls style="width:100%; height:40px;">
-                <source src="{Config.AUDIO_FILE}" type="audio/mp3">
+                <source src="{audio_file}" type="audio/mp3">
             </audio>
         </div>
         """
 
     @staticmethod
     def show_call_effect():
-        LIGANDO_DELAY = 5
-        ATENDIDA_DELAY = 3
+        LIGANDO_DELAY = 2  # Reduzido de 5 para 2 segundos
+        ATENDIDA_DELAY = 2  # Reduzido de 3 para 2 segundos
 
         call_container = st.empty()
         call_container.markdown(f"""
@@ -516,7 +746,7 @@ class UiService:
         message = status_messages[status_type]
         dots = ""
         start_time = time.time()
-        duration = 2.5 if status_type == "viewed" else 4.0
+        duration = 2.5 if status_type == "viewed" else random.uniform(3, 6)  # Variação no tempo de digitação
         
         while time.time() - start_time < duration:
             elapsed = time.time() - start_time
@@ -545,12 +775,12 @@ class UiService:
         container.empty()
 
     @staticmethod
-    def show_audio_recording_effect(container):
+    def show_audio_recording_effect(container, duration=7):
         message = "Gravando um áudio"
         dots = ""
         start_time = time.time()
         
-        while time.time() - start_time < Config.AUDIO_DURATION:
+        while time.time() - start_time < duration:
             elapsed = time.time() - start_time
             dots = "." * (int(elapsed) % 4)
             
@@ -770,6 +1000,38 @@ class UiService:
     @staticmethod
     def show_gallery_page(conn):
         st.markdown("""
+        <style>
+            .preview-container {
+                position: relative;
+                overflow: hidden;
+                border-radius: 10px;
+                margin-bottom: 15px;
+            }
+            .preview-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+            .preview-container:hover .preview-overlay {
+                opacity: 1;
+            }
+            .preview-text {
+                color: white;
+                font-weight: bold;
+                text-align: center;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
         <div style="
             background: rgba(255, 20, 147, 0.1);
             padding: 15px;
@@ -784,14 +1046,12 @@ class UiService:
         
         for idx, col in enumerate(cols):
             with col:
-                st.image(
-                    Config.IMG_GALLERY[idx],
-                    use_container_width=True,
-                    caption=f"Preview {idx+1}"
-                )
                 st.markdown(f"""
-                <div style="text-align: center; font-size: 0.8em; color: #ff66b3; margin-top: -10px;">
-                    Conteúdo bloqueado
+                <div class="preview-container">
+                    <img src="{Config.IMG_GALLERY[idx]}" style="width:100%; border-radius:10px;">
+                    <div class="preview-overlay">
+                        <div class="preview-text">Conteúdo VIP<br>Assine para desbloquear</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
         
@@ -857,8 +1117,8 @@ class UiService:
                 font-size: 0.8rem !important;
             }
             div[data-testid="stHorizontalBlock"] > div > div > button:hover {
-                background: rgba(255, 102, 179, 0.3) !important;
                 transform: translateY(-2px) !important;
+                box-shadow: 0 2px 8px rgba(255, 102, 179, 0.3) !important;
             }
             @media (max-width: 400px) {
                 div[data-testid="stHorizontalBlock"] > div > div > button {
@@ -1119,7 +1379,7 @@ class NewPages:
                 <li>3 vídeo Intimos</li>
                 <li>Fotos Exclusivas</li>
                 <li>Videos Intimos </li>
-                <li>Fotos Exclusivas</li>
+                <li>Fotos Buceta</li>
             </ul>
             <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
                 <a href="{checkout_start}" target="_blank" rel="noopener noreferrer" style="
@@ -1339,6 +1599,22 @@ class ChatService:
                 if m["role"] == "user"
             ])
         
+        # Inicializar contador de áudios
+        if "audio_count" not in st.session_state:
+            st.session_state.audio_count = 0
+            
+        # Inicializar interesses do usuário
+        if "user_interests" not in st.session_state:
+            st.session_state.user_interests = {}
+            
+        # Inicializar humor do usuário
+        if "user_mood" not in st.session_state:
+            st.session_state.user_mood = "neutro"
+            
+        # Inicializar timestamp da última mensagem
+        if "last_message_time" not in st.session_state:
+            st.session_state.last_message_time = time.time()
+        
         defaults = {
             'age_verified': False,
             'connection_complete': False,
@@ -1346,7 +1622,8 @@ class ChatService:
             'audio_sent': False,
             'current_page': 'home',
             'show_vip_offer': False,
-            'last_cta_time': 0  # Novo campo adicionado
+            'last_cta_time': 0,
+            'user_preferences': {}
         }
         
         for key, default in defaults.items():
@@ -1452,25 +1729,59 @@ class ChatService:
         return cleaned_input[:500]
 
     @staticmethod
+    def should_send_audio(user_input, response_data):
+        """Decide se deve enviar um áudio baseado no contexto"""
+        # Limitar a 3 áudios por sessão
+        if st.session_state.get('audio_count', 0) >= 3:
+            return False
+            
+        user_input = user_input.lower()
+        
+        # Verificar se há palavras-chave que justifiquem um áudio
+        audio_triggers = [
+            "audio", "voz", "falar", "dizer", "ouvir", "som",
+            "gritar", "gemer", "sussurrar", "sussurro"
+        ]
+        
+        has_audio_trigger = any(trigger in user_input for trigger in audio_triggers)
+        
+        # Verificar se a resposta sugere um áudio
+        response_audio_type = response_data.get('audio_type')
+        has_audio_type = response_audio_type and response_audio_type != "none"
+        
+        # 30% de chance aleatória se não houver trigger explícito
+        random_chance = random.random() < 0.3
+        
+        return has_audio_trigger or has_audio_type or random_chance
+
+    @staticmethod
     def process_user_input(conn):
         ChatService.display_chat_history()
         
-        if not st.session_state.get("audio_sent") and st.session_state.chat_started:
-            status_container = st.empty()
-            UiService.show_audio_recording_effect(status_container)
+        # Removido o áudio inicial automático
+        # Em vez disso, enviar uma mensagem de texto após 5 segundos
+        if not st.session_state.get("chat_started") and not st.session_state.get("welcome_sent"):
+            time.sleep(5)  # Espera 5 segundos
+            
+            welcome_message = {
+                "text": HumanizationEngine.humanize_text("Oi gato, tudo bem? Que bom que veio me ver..."),
+                "cta": {"show": False}
+            }
             
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": "[ÁUDIO]"
+                "content": json.dumps(welcome_message)
             })
+            
             DatabaseService.save_message(
                 conn,
                 get_user_id(),
                 st.session_state.session_id,
                 "assistant",
-                "[ÁUDIO]"
+                json.dumps(welcome_message)
             )
-            st.session_state.audio_sent = True
+            
+            st.session_state.welcome_sent = True
             save_persistent_data()
             st.rerun()
         
@@ -1478,6 +1789,19 @@ class ChatService:
         
         if user_input:
             cleaned_input = ChatService.validate_input(user_input)
+            
+            # Analisar sentimento e extrair interesses
+            sentiment = SentimentAnalyzer.analyze(cleaned_input)
+            st.session_state.user_mood = SentimentAnalyzer.get_mood_label(sentiment["polarity"])
+            
+            interests = InterestExtractor.extract_interests(cleaned_input)
+            for interest, strength in interests.items():
+                st.session_state.user_interests[interest] = st.session_state.user_interests.get(interest, 0) + strength
+            
+            # Atualizar interesses no banco de dados
+            db = PersistentState()
+            for interest, strength in interests.items():
+                db.update_user_interest(get_user_id(), interest, strength)
             
             if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
                 st.session_state.messages.append({
@@ -1508,6 +1832,7 @@ class ChatService:
             )
             
             st.session_state.request_count += 1
+            st.session_state.last_message_time = time.time()
             
             with st.chat_message("user", avatar="🧑"):
                 st.markdown(f"""
@@ -1540,6 +1865,28 @@ class ChatService:
                     {resposta["text"]}
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Verificar se deve enviar áudio
+                if ChatService.should_send_audio(cleaned_input, resposta):
+                    audio_type = resposta.get("audio_type", "default")
+                    status_container = st.empty()
+                    UiService.show_audio_recording_effect(status_container, random.randint(3, 8))
+                    
+                    st.markdown(UiService.get_chat_audio_player(audio_type), unsafe_allow_html=True)
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": "[ÁUDIO]"
+                    })
+                    DatabaseService.save_message(
+                        conn,
+                        get_user_id(),
+                        st.session_state.session_id,
+                        "assistant",
+                        "[ÁUDIO]"
+                    )
+                    
+                    st.session_state.audio_count += 1
                 
                 if resposta.get("cta", {}).get("show"):
                     if st.button(
@@ -1646,7 +1993,8 @@ def main():
                 st.session_state.update({
                     'chat_started': True,
                     'current_page': 'chat',
-                    'audio_sent': False
+                    'audio_sent': False,
+                    'welcome_sent': False
                 })
                 save_persistent_data()
                 st.rerun()
@@ -1675,4 +2023,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
