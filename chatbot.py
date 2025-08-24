@@ -581,11 +581,7 @@ class ApiService:
             logging.info("Chamada API bem-sucedida")
             gemini_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
             
-            try:
-                if '```json' in gemini_response:
-                    resposta = json.loads(gemini_response.split('```json
-                else:
-                    resposta = json.loads(gemini_response)
+            
                 
                 # Verificar se deve mostrar CTA
                 if resposta.get("cta", {}).get("show"):
@@ -1548,4 +1544,5 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
 
