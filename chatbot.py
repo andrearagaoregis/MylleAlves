@@ -114,17 +114,17 @@ class Config:
 # ======================
 class PersistentState:
     _instance = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.init_db()
         return cls._instance
-    
+
     def init_db(self):
         self.conn = sqlite3.connect('persistent_state.db', check_same_thread=False)
         self.create_tables()
-    
+
     def create_tables(self):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -143,7 +143,7 @@ class PersistentState:
             VALUES (?, ?)
         ''', (user_id, json.dumps(data)))
         self.conn.commit()
-    
+
     def load_state(self, user_id):
         cursor = self.conn.cursor()
         cursor.execute('SELECT session_data FROM global_state WHERE user_id = ?', (user_id,))
@@ -163,7 +163,7 @@ def load_persistent_data():
     user_id = get_user_id()
     db = PersistentState()
     saved_data = db.load_state(user_id) or {}
-    
+
     for key, value in saved_data.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -171,17 +171,17 @@ def load_persistent_data():
 def save_persistent_data():
     user_id = get_user_id()
     db = PersistentState()
-    
+
     persistent_keys = [
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started', 'audio_sent',
         'current_page', 'show_vip_offer', 'session_id',
         'last_cta_time', 'greeted', 'first_response_handled'
     ]
-    
+
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
     saved_data = db.load_state(user_id) or {}
-    
+
     if new_data != saved_data:
         db.save_state(user_id, new_data)
 
@@ -269,31 +269,31 @@ class CTAEngine:
                 except:
                     pass
             last_msgs.append(f"{msg['role']}: {content.lower()}")
-        
+
         context = " ".join(last_msgs)
-        
+
         hot_words = [
-            "buceta", "peito", "fuder", "gozar", "gostosa", 
+            "buceta", "peito", "fuder", "gozar", "gostosa",
             "delicia", "molhad", "xereca", "pau", "piroca",
-            "transar", "foto", "video", "mostra", "ver", 
+            "transar", "foto", "video", "mostra", "ver",
             "quero", "desejo", "tesão", "molhada", "foda"
         ]
-        
+
         direct_asks = [
             "mostra", "quero ver", "me manda", "como assinar",
             "como comprar", "como ter acesso", "onde vejo mais"
         ]
-        
+
         hot_count = sum(1 for word in hot_words if word in context)
         has_direct_ask = any(ask in context for ask in direct_asks)
-        
+
         return (hot_count >= 3) or has_direct_ask
 
     @staticmethod
     def generate_response(user_input: str) -> dict:
         """Gera resposta com CTA contextual (fallback)"""
         user_input = user_input.lower()
-        
+
         if any(p in user_input for p in ["foto", "fotos", "buceta", "peito", "bunda"]):
             return {
                 "text": random.choice([
@@ -307,7 +307,7 @@ class CTAEngine:
                     "target": "offers"
                 }
             }
-        
+
         elif any(v in user_input for v in ["video", "transar", "masturbar"]):
             return {
                 "text": random.choice([
@@ -321,7 +321,7 @@ class CTAEngine:
                     "target": "offers"
                 }
             }
-        
+
         else:
             return {
                 "text": random.choice([
@@ -388,20 +388,31 @@ class ApiService:
     def _call_gemini_api(prompt: str, session_id: str, conn) -> dict:
         delay_time = random.uniform(1, 3)
         time.sleep(delay_time)
-        
+
         # simulate UI effects
         status_container = st.empty()
         UiService.show_status_effect(status_container, "viewed")
         UiService.show_status_effect(status_container, "typing")
-        
+
         conversation_history = ChatService.format_conversation_history(st.session_state.messages)
-        
+
+        # build the text to send to the API without using an f-string that contains unescaped braces
+        api_user_text = (
+            Persona.MYLLE
+            + "\n\nHistórico da Conversa:\n"
+            + conversation_history
+            + "\n\nÚltima mensagem do cliente: '"
+            + prompt
+            + "'\n\nResponda em JSON com o formato:\n"
+            + '{\n  "text": "...",\n  "cta": {"show": false}\n}\n'
+        )
+
         headers = {'Content-Type': 'application/json'}
         data = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {\"show\": false}\n}}\n"}]
+                    "parts": [{"text": api_user_text}]
                 }
             ],
             "generationConfig": {
@@ -410,29 +421,29 @@ class ApiService:
                 "topK": 40
             }
         }
-        
+
         try:
             response = requests.post(Config.API_URL, headers=headers, json=data, timeout=Config.REQUEST_TIMEOUT)
             response.raise_for_status()
             gemini_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            
+
             try:
                 if '```json' in gemini_response:
                     resposta = json.loads(gemini_response.split('```json')[1].split('```')[0].strip())
                 else:
                     resposta = json.loads(gemini_response)
-                
+
                 if resposta.get("cta", {}).get("show"):
                     if not CTAEngine.should_show_cta(st.session_state.messages):
                         resposta["cta"]["show"] = False
                     else:
                         st.session_state.last_cta_time = time.time()  # Registrar quando CTA foi mostrado
-                
+
                 return resposta
-            
+
             except json.JSONDecodeError:
                 return {"text": gemini_response, "cta": {"show": False}}
-                
+
         except Exception as e:
             # Fallback: use CTAEngine fallback response for certain prompts
             if any(k in prompt.lower() for k in ["foto", "video", "vip", "quero ver", "ver fotos"]):
@@ -494,7 +505,7 @@ class UiService:
             }}
         </style>
         """, unsafe_allow_html=True)
-        
+
         time.sleep(LIGANDO_DELAY)
         call_container.markdown(f"""
         <div style="
@@ -513,7 +524,7 @@ class UiService:
             <p style="font-size: 0.9rem; margin:0;">Mylle está te esperando...</p>
         </div>
         """, unsafe_allow_html=True)
-        
+
         time.sleep(ATENDIDA_DELAY)
         call_container.empty()
 
@@ -523,18 +534,18 @@ class UiService:
             "viewed": "Visualizado",
             "typing": "Digitando"
         }
-        
+
         message = status_messages.get(status_type, "...")
         dots = ""
         start_time = time.time()
         duration = 2.5 if status_type == "viewed" else 4.0
-        
+
         while time.time() - start_time < duration:
             elapsed = time.time() - start_time
-            
+
             if status_type == "typing":
                 dots = "." * (int(elapsed * 2) % 4)
-            
+
             container.markdown(f"""
             <div style="
                 color: #888;
@@ -550,9 +561,9 @@ class UiService:
                 {message}{dots}
             </div>
             """, unsafe_allow_html=True)
-            
+
             time.sleep(0.3)
-        
+
         container.empty()
 
     @staticmethod
@@ -584,11 +595,11 @@ class UiService:
         message = "Gravando um áudio"
         dots = ""
         start_time = time.time()
-        
+
         while time.time() - start_time < Config.AUDIO_DURATION:
             elapsed = time.time() - start_time
             dots = "." * (int(elapsed) % 4)
-            
+
             container.markdown(f"""
             <div style="
                 color: #888;
@@ -604,9 +615,9 @@ class UiService:
                 {message}{dots}
             </div>
             """, unsafe_allow_html=True)
-            
+
             time.sleep(0.3)
-        
+
         container.empty()
 
     @staticmethod
@@ -683,7 +694,7 @@ class UiService:
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             # Added pepper icon to the entry button label
-            if st.button("🌶️ Confirmo que sou maior de 18 anos", 
+            if st.button("🌶️ Confirmo que sou maior de 18 anos",
                         key="age_checkbox",
                         use_container_width=True,
                         type="primary"):
@@ -769,31 +780,31 @@ class UiService:
                 }
             </style>
             """, unsafe_allow_html=True)
-            
+
             st.markdown(f"""
             <div class="sidebar-logo-container">
                 <img src="{Config.LOGO_URL}" class="sidebar-logo" alt="Logo">
             </div>
             """, unsafe_allow_html=True)
-            
+
             st.markdown(f"""
             <div class="sidebar-header">
                 <img src="{Config.IMG_PROFILE}" alt="Mylle">
                 <h3 style="color: #ffffff; margin-top: 10px;">Mylle Alves</h3>
             </div>
             """, unsafe_allow_html=True)
-            
+
             st.markdown("---")
             # Menu title color changed to white
             st.markdown('<h3 style="color: white; margin-bottom: 8px;">Menu Exclusivo</h3>', unsafe_allow_html=True)
-            
+
             menu_options = {
                 "Início": "home",
                 "Galeria Privada": "gallery",
                 "Mensagens": "messages",
                 "Ofertas Especiais": "offers"
             }
-            
+
             for option, page in menu_options.items():
                 if st.button(option, use_container_width=True, key=f"menu_{page}"):
                     if st.session_state.current_page != page:
@@ -801,17 +812,17 @@ class UiService:
                         st.session_state.last_action = f"page_change_to_{page}"
                         save_persistent_data()
                         st.rerun()
-            
+
             st.markdown("---")
             # Removed "Sua Conta" and VIP banners/links as requested (no VIP upsell in sidebar)
-            
+
             # Social buttons (Instagram, Facebook, Telegram, TikTok)
             st.markdown('<div style="margin-top: 8px;"><strong style="color:#fff;">Redes Sociais</strong></div>', unsafe_allow_html=True)
             for name, link in Config.SOCIALS.items():
                 st.markdown(f"""
                 <a href="{link}" target="_blank" rel="noopener noreferrer" class="social-btn">{name}</a>
                 """, unsafe_allow_html=True)
-            
+
             st.markdown("---")
             st.markdown("""
             <div style="text-align: center; font-size: 0.7em; color: #bdbdbd;">
@@ -832,9 +843,9 @@ class UiService:
             <p style="margin: 0;">Conteúdo exclusivo disponível</p>
         </div>
         """, unsafe_allow_html=True)
-        
+
         cols = st.columns(3)
-        
+
         for idx, col in enumerate(cols):
             with col:
                 st.image(
@@ -852,7 +863,7 @@ class UiService:
                     Conteúdo bloqueado
                 </div>
                 """, unsafe_allow_html=True)
-        
+
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center;">
@@ -871,7 +882,7 @@ class UiService:
     def chat_shortcuts():
         cols = st.columns(4)
         with cols[0]:
-            if st.button("Início", key="shortcut_home", 
+            if st.button("Início", key="shortcut_home",
                        help="Voltar para a página inicial",
                        use_container_width=True):
                 st.session_state.current_page = "home"
@@ -964,15 +975,15 @@ class UiService:
             }
         </style>
         """, unsafe_allow_html=True)
-        
+
         UiService.chat_shortcuts()
-        
+
         st.markdown(f"""
         <div class="chat-header">
             <h2 style="margin:0; font-size:1.2em; display:inline-block;">Chat Privado com Mylle</h2>
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.sidebar.markdown(f"""
         <div class="sidebar-stats" style="margin-bottom:12px;">
             <p style="margin:0; font-size:0.95em; color:#fff;">
@@ -981,10 +992,10 @@ class UiService:
             <progress value="{st.session_state.request_count}" max="{Config.MAX_REQUESTS_PER_SESSION}" style="width:100%; height:6px;"></progress>
         </div>
         """, unsafe_allow_html=True)
-        
+
         ChatService.process_user_input(conn)
         save_persistent_data()
-        
+
         st.markdown("""
         <div class="chat-footer">
             <p>Conversa privada • Suas mensagens são confidenciais</p>
@@ -998,7 +1009,7 @@ class NewPages:
     @staticmethod
     def show_home_page(conn):
         col1, col2 = st.columns([1, 2])
-        
+
         with col1:
             st.image(Config.IMG_PROFILE, use_column_width=True)
             st.markdown("""
@@ -1007,9 +1018,9 @@ class NewPages:
                 <p style="color: #888;">Online agora 💚</p>
             </div>
             """, unsafe_allow_html=True)
-            
+
             st.markdown("---")
-            
+
             st.markdown("""
             <div style="
                 background: rgba(255, 102, 179, 0.1);
@@ -1023,7 +1034,7 @@ class NewPages:
                 <p>📍 São Paulo</p>
             </div>
             """, unsafe_allow_html=True)
-        
+
         with col2:
             st.markdown("""
             <div style="
@@ -1038,7 +1049,7 @@ class NewPages:
                 <p>Conversas quentes e conteúdo exclusivo esperando por você!</p>
             </div>
             """, unsafe_allow_html=True)
-            
+
             st.markdown("""
             <div style="
                 background: rgba(255, 102, 179, 0.1);
@@ -1054,7 +1065,7 @@ class NewPages:
                 <p>• 🔞 Experiências únicas</p>
             </div>
             """, unsafe_allow_html=True)
-            
+
             # Preview images
             st.markdown("### 🌶️ Prévia do Conteúdo")
             preview_cols = st.columns(2)
@@ -1099,7 +1110,7 @@ class NewPages:
         plans = [
             {"name": "1 Mês", "price": "R$ 29,90", "benefits": ["Acesso total", "Conteúdo novo diário", "Chat privado"], "tag": "COMUM"},
             {"name": "3 Meses", "price": "R$ 69,90", "benefits": ["25% de desconto", "Bônus: 1 vídeo exclusivo", "Prioridade no chat"], "tag": "MAIS POPULAR"},
-            {"name": "1 Ano", "price": "R$ 199,90", "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"], "tag": "MELHOR CUSTO-BENÍCIO"}
+            {"name": "1 Ano", "price": "R$ 199,90", "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"], "tag": "MELHOR CUSTO-BENEFÍCIO"}
         ]
 
         for plan in plans:
@@ -1136,23 +1147,23 @@ class ChatService:
     @staticmethod
     def initialize_session(conn):
         load_persistent_data()
-        
+
         if "session_id" not in st.session_state:
             st.session_state.session_id = str(random.randint(100000, 999999))
-        
+
         if "messages" not in st.session_state:
             st.session_state.messages = DatabaseService.load_messages(
                 conn,
                 get_user_id(),
                 st.session_state.session_id
             )
-        
+
         if "request_count" not in st.session_state:
             st.session_state.request_count = len([
-                m for m in st.session_state.messages 
+                m for m in st.session_state.messages
                 if m["role"] == "user"
             ])
-        
+
         defaults = {
             'age_verified': False,
             'connection_complete': False,
@@ -1164,7 +1175,7 @@ class ChatService:
             'greeted': False,  # whether the assistant already sent the opening message
             'first_response_handled': False  # whether the special first user reply flow ran
         }
-        
+
         for key, default in defaults.items():
             if key not in st.session_state:
                 st.session_state[key] = default
@@ -1172,7 +1183,7 @@ class ChatService:
     @staticmethod
     def format_conversation_history(messages, max_messages=10):
         formatted = []
-        
+
         for msg in messages[-max_messages:]:
             role = "Cliente" if msg["role"] == "user" else "Mylle"
             content = msg["content"]
@@ -1183,9 +1194,9 @@ class ChatService:
                     content = json.loads(content).get("text", content)
                 except:
                     pass
-            
+
             formatted.append(f"{role}: {content}")
-        
+
         return "\n".join(formatted)
 
     @staticmethod
@@ -1213,7 +1224,7 @@ class ChatService:
                                     {content_data.get("text", "")}
                                 </div>
                                 """, unsafe_allow_html=True)
-                                
+
                                 # Mostrar botão apenas na última mensagem
                                 if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
                                     if st.button(
@@ -1248,7 +1259,7 @@ class ChatService:
     def process_user_input(conn):
         # Display history first
         ChatService.display_chat_history()
-        
+
         # If chat has just started and assistant hasn't greeted, simulate typing after a 3s delay then send first sexy prompt
         if st.session_state.chat_started and not st.session_state.greeted:
             status_container = st.empty()
@@ -1272,13 +1283,13 @@ class ChatService:
             save_persistent_data()
             st.rerun()
             return
-        
+
         # If previously the assistant sent the opening prompt, now show input for user
         user_input = st.chat_input("Escreva sua mensagem aqui", key="chat_input")
-        
+
         if user_input:
             cleaned_input = ChatService.validate_input(user_input)
-            
+
             if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -1294,7 +1305,7 @@ class ChatService:
                 save_persistent_data()
                 st.rerun()
                 return
-            
+
             st.session_state.messages.append({
                 "role": "user",
                 "content": cleaned_input
@@ -1306,16 +1317,16 @@ class ChatService:
                 "user",
                 cleaned_input
             )
-            
+
             st.session_state.request_count += 1
-            
+
             with st.chat_message("user", avatar="🧑"):
                 st.markdown(f"""
                 <div class="user-bubble">
                     {cleaned_input}
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             # Special flow: after the user answers the initial greeting, send a warm/naughty intro and mention promotions
             if st.session_state.greeted and not st.session_state.first_response_handled:
                 # Prepare personalized (but gentle) intro messages
@@ -1327,23 +1338,23 @@ class ChatService:
                         possible_name = name_candidate.capitalize()
                 except:
                     possible_name = None
-                
+
                 name_display = possible_name if possible_name else "gato"
-                
+
                 intro_msg = f"ai {name_display}.. que delícia saber de você ❤️ eu sou a Mylle, crio conteúdo bem ousado e íntimo"
                 promo_msg = "essa semana tá tudo em promoção pros meus seguidores mais chegadinhos, mas eu conto tudo com carinho e do jeito mais safado pra você 😘"
-                
+
                 # Show typing effect then append messages
                 status_container = st.empty()
                 UiService.show_custom_typing(status_container, duration=2.0)
-                
+
                 with st.chat_message("assistant", avatar="💋"):
                     st.markdown(f"""
                     <div class="assistant-bubble">
                         {intro_msg}
                     </div>
                     """, unsafe_allow_html=True)
-                
+
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": json.dumps({"text": intro_msg, "cta": {"show": False}})
@@ -1355,18 +1366,18 @@ class ChatService:
                     "assistant",
                     json.dumps({"text": intro_msg, "cta": {"show": False}})
                 )
-                
+
                 # Another short typing and promo message
                 status_container = st.empty()
                 UiService.show_custom_typing(status_container, duration=2.0)
-                
+
                 with st.chat_message("assistant", avatar="💋"):
                     st.markdown(f"""
                     <div class="assistant-bubble">
                         {promo_msg}
                     </div>
                     """, unsafe_allow_html=True)
-                
+
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": json.dumps({"text": promo_msg, "cta": {"show": False}})
@@ -1378,31 +1389,31 @@ class ChatService:
                     "assistant",
                     json.dumps({"text": promo_msg, "cta": {"show": False}})
                 )
-                
+
                 st.session_state.first_response_handled = True
                 save_persistent_data()
                 st.rerun()
                 return  # don't call external API for this special flow
-            
+
             # Normal flow: call API for responses on subsequent messages
             with st.chat_message("assistant", avatar="💋"):
                 # show typing
                 status_container = st.empty()
                 UiService.show_custom_typing(status_container, duration=1.2)
-                
+
                 resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
-                
+
                 if isinstance(resposta, str):
                     resposta = {"text": resposta, "cta": {"show": False}}
                 elif "text" not in resposta:
                     resposta = {"text": str(resposta), "cta": {"show": False}}
-                
+
                 st.markdown(f"""
                 <div class="assistant-bubble">
                     {resposta["text"]}
                 </div>
                 """, unsafe_allow_html=True)
-                
+
                 if resposta.get("cta", {}).get("show"):
                     if st.button(
                         resposta["cta"].get("label", "Ver Ofertas"),
@@ -1412,7 +1423,7 @@ class ChatService:
                         st.session_state.current_page = resposta["cta"].get("target", "offers")
                         save_persistent_data()
                         st.rerun()
-            
+
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": json.dumps(resposta)
@@ -1424,9 +1435,9 @@ class ChatService:
                 "assistant",
                 json.dumps(resposta)
             )
-            
+
             save_persistent_data()
-            
+
             st.markdown("""
             <script>
                 window.scrollTo(0, document.body.scrollHeight);
@@ -1474,26 +1485,26 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
-    
+
     if 'db_conn' not in st.session_state:
         st.session_state.db_conn = DatabaseService.init_db()
-    
+
     conn = st.session_state.db_conn
-    
+
     ChatService.initialize_session(conn)
-    
+
     if not st.session_state.age_verified:
         UiService.age_verification()
         st.stop()
-    
+
     UiService.setup_sidebar()
-    
+
     if not st.session_state.connection_complete:
         UiService.show_call_effect()
         st.session_state.connection_complete = True
         save_persistent_data()
         st.rerun()
-    
+
     if not st.session_state.chat_started:
         col1, col2, col3 = st.columns([1,3,1])
         with col2:
@@ -1504,7 +1515,7 @@ def main():
                 <p style="font-size: 1.05em;">Tô pronta pra você, amor...</p>
             </div>
             """.format(profile_img=Config.IMG_PROFILE), unsafe_allow_html=True)
-            
+
             if st.button("Iniciar Conversa 🌶️", type="primary", use_container_width=True):
                 st.session_state.update({
                     'chat_started': True,
@@ -1514,7 +1525,7 @@ def main():
                 save_persistent_data()
                 st.rerun()
         st.stop()
-    
+
     if st.session_state.current_page == "home":
         NewPages.show_home_page(conn)
     elif st.session_state.current_page == "gallery":
@@ -1529,7 +1540,7 @@ def main():
             st.rerun()
     else:
         UiService.enhanced_chat_ui(conn)
-    
+
     save_persistent_data()
 
 if __name__ == "__main__":
