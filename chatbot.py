@@ -699,8 +699,12 @@ class UiService:
                         use_container_width=True,
                         type="primary"):
                 # mark verified and go directly to profile (home) page
+                # IMPORTANT CHANGE: also mark connection_complete True so the app navigates directly
+                # to the profile/home page and DOES NOT show the initial call animation page.
                 st.session_state.age_verified = True
-                st.session_state.current_page = 'home'
+                st.session_state.current_page = 'home'     # profile/home page
+                st.session_state.connection_complete = True  # skip call effect and go straight to profile
+                st.session_state.chat_started = False
                 save_persistent_data()
                 st.rerun()
 
@@ -1499,6 +1503,7 @@ def main():
 
     UiService.setup_sidebar()
 
+    # only show initial call effect if connection_complete is False
     if not st.session_state.connection_complete:
         UiService.show_call_effect()
         st.session_state.connection_complete = True
