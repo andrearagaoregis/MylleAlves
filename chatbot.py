@@ -12,7 +12,6 @@ import uuid
 from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Optional
-import threading
 from collections import defaultdict
 
 # ======================
@@ -173,7 +172,6 @@ class Config:
         "tiktok": "🎵 TikTok",
         "twitter": "🐦 Twitter"
     }
-    # Emoticons curtos (apenas o emoji para mostrar como ícone)
     SOCIAL_EMOJI = {
         "instagram": "📸",
         "facebook": "📘",
@@ -682,9 +680,9 @@ class ApiService:
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
-        # Calcular tempo de resposta baseado no tamanho do texto (0.5 segundo por caractere, mínimo 10s)
+        # Simulação de tempo de resposta (evita bloqueio por tempo demais)
         response_delay = max(10, len(prompt) * 0.5)
-        time.sleep(min(response_delay, 20))  # Máximo de 20 segundos
+        time.sleep(min(response_delay, 20))  # máximo 20s de espera simulada
         
         status_container = st.empty()
         UiService.show_status_effect(status_container, "viewed")
@@ -695,17 +693,30 @@ class ApiService:
         # Obter informações do lead para personalização
         lead_info = LearningEngine().get_lead_info(get_user_id())
         lead_context = ""
-        if lead_info["name"]:
+        if lead_info.get("name"):
             lead_context += f"O nome do lead é {lead_info['name']}. "
-        if lead_info["location"]:
+        if lead_info.get("location"):
             lead_context += f"Ele é de {lead_info['location']}. "
         
         headers = {'Content-Type': 'application/json'}
+        # Construção segura da string de instrução para evitar f-string unterminated
+        instruction_text = (
+            f"{Persona.MYLLE}\n\n"
+            f"Contexto do Lead: {lead_context}\n\n"
+            f"Histórico da Conversa:\n{conversation_history}\n\n"
+            f"Última mensagem do cliente: '{prompt}'\n\n"
+            "IMPORTANTE: Responda EXCLUSIVAMENTE em JSON (não inclua texto extra fora do JSON). "
+            "O JSON deve conter pelo menos o campo 'text' (string). Opcionalmente pode conter 'audio' "
+            "(string com a chave do áudio) e 'cta' (objeto com 'show' booleano; se true inclua 'label' e 'target'). "
+            "Exemplo de resposta esperada: {\"text\":\"...\",\"audio\":\"audio_key_optional\",\"cta\":{\"show\":true,\"label\":\"...\",\"target\":\"offers\"}}"
+        )
         data = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nContexto do Lead: {lead_context}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nIMPORTANTE[...]
+                    "parts": [
+                        {"text": instruction_text}
+                    ]
                 }
             ],
             "generationConfig": {
@@ -718,17 +729,18 @@ class ApiService:
         try:
             response = requests.post(Config.API_URL, headers=headers, json=data, timeout=Config.REQUEST_TIMEOUT)
             response.raise_for_status()
-            gemini_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            gemini_text = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
             
             try:
-                if '```json' in gemini_response:
-                    resposta = json.loads(gemini_response.split('```json')[1].split('```')[0].strip())
+                # Tentar extrair JSON do texto retornado
+                if '```json' in gemini_text:
+                    json_part = gemini_text.split('```json')[1].split('```')[0].strip()
+                    resposta = json.loads(json_part)
                 else:
-                    resposta = json.loads(gemini_response)
+                    resposta = json.loads(gemini_text)
                 
-                # Decidir se deve usar áudio (15% das vezes)
+                # Se a engine decidir usar áudio (15%) mas não vier, atribuir apropriado
                 if CTAEngine().should_use_audio() and "audio" not in resposta:
-                    # Selecionar áudio apropriado baseado no contexto
                     if any(word in prompt.lower() for word in ["amostra", "grátis", "sample", "free"]):
                         resposta["audio"] = "claro_tenho_amostra_gratis"
                     elif any(word in prompt.lower() for word in ["foto", "fotos", "imagem", "video", "vídeos"]):
@@ -743,10 +755,9 @@ class ApiService:
                         st.session_state.last_cta_time = time.time()
                 
                 return resposta
-            
             except json.JSONDecodeError:
-                return {"text": gemini_response, "cta": {"show": False}}
-                
+                # Se não for JSON, fallback para resposta derivada do aprendizado local
+                return {"text": gemini_text, "cta": {"show": False}}
         except requests.exceptions.RequestException as e:
             st.error(f"Erro de conexão: {str(e)}")
             return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
@@ -1150,7 +1161,6 @@ class NewPages:
         cols = st.columns(3)
         for idx, (col, package) in enumerate(zip(cols, packages)):
             with col:
-                # Cartão do pacote com layout limpo e seguro para f-strings
                 card_html = f"""
                 <div style="
                     background: rgba(30, 0, 51, 0.3);
@@ -1244,7 +1254,6 @@ class ChatService:
 
         # Iniciar conversa automaticamente se for novo usuário
         if len(st.session_state.messages) == 0 and st.session_state.chat_started:
-            # Simular digitação na primeira mensagem
             typing_container = st.empty()
             typing_container.markdown("""
             <div style="
@@ -1463,7 +1472,6 @@ class ChatService:
                 """, unsafe_allow_html=True)
             
             with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
-                # Simular digitação (0.5 segundo por caractere, mínimo 10s)
                 resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
                 
                 if isinstance(resposta, str):
