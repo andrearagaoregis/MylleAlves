@@ -401,7 +401,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {\"show\": false}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {{\"show\": false}}\n}}"}]
                 }
             ],
             "generationConfig": {
