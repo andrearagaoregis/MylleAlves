@@ -103,6 +103,33 @@ hide_streamlit_style = """
         font-size: 24px !important;
         margin-right: 10px !important;
     }
+
+    /* Estilos para ícones circulares na sidebar */
+    .sidebar-social-row {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin: 12px 0;
+    }
+    .sidebar-social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, rgba(255,20,147,0.12), rgba(148,0,211,0.12));
+        border: 2px solid rgba(255,102,179,0.18);
+        color: white;
+        font-size: 20px;
+        text-decoration: none;
+        transition: all 0.18s ease;
+    }
+    .sidebar-social-icon:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 6px 16px rgba(255, 20, 147, 0.14);
+        background: linear-gradient(45deg, #ff1493, #9400d3);
+    }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -145,6 +172,15 @@ class Config:
         "telegram": "✈️ Telegram",
         "tiktok": "🎵 TikTok",
         "twitter": "🐦 Twitter"
+    }
+    # Emoticons curtos (apenas o emoji para mostrar como ícone)
+    SOCIAL_EMOJI = {
+        "instagram": "📸",
+        "facebook": "📘",
+        "onlyfans": "💎",
+        "telegram": "✈️",
+        "tiktok": "🎵",
+        "twitter": "🐦"
     }
     
     # URLs dos áudios
@@ -922,14 +958,15 @@ class UiService:
             
             st.markdown("---")
             
-            # Botões de redes sociais (estilo igual ao menu) - inclui Instagram, Facebook, OnlyFans, Telegram, TikTok, Twitter
+            # Botões de redes sociais como ícones circulares (apenas emoji)
+            social_html = '<div class="sidebar-social-row">'
             for platform, url in Config.SOCIAL_LINKS.items():
-                # Mostra o botão com o rótulo definido em SOCIAL_ICONS
+                emoji = Config.SOCIAL_EMOJI.get(platform, Config.SOCIAL_ICONS.get(platform, platform)[0])
                 label = Config.SOCIAL_ICONS.get(platform, platform.capitalize())
-                if st.button(label, key=f"sidebar_{platform}", use_container_width=True):
-                    # Abrir link em nova aba
-                    js = f"window.open('{url}', '_blank');"
-                    st.components.v1.html(f"<script>{js}</script>")
+                # Cada ícone é um link que abre em nova aba
+                social_html += f'<a class="sidebar-social-icon" href="{url}" target="_blank" title="{label}">{emoji}</a>'
+            social_html += '</div>'
+            st.components.v1.html(social_html, height=72)
             
             st.markdown("---")
             
