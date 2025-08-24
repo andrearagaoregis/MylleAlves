@@ -401,7 +401,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {{\"show\": false}}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {\"show\": false}\n}}\n"}]
                 }
             ],
             "generationConfig": {
@@ -687,7 +687,9 @@ class UiService:
                         key="age_checkbox",
                         use_container_width=True,
                         type="primary"):
+                # mark verified and go directly to profile (home) page
                 st.session_state.age_verified = True
+                st.session_state.current_page = 'home'
                 save_persistent_data()
                 st.rerun()
 
@@ -699,6 +701,12 @@ class UiService:
                 [data-testid="stSidebar"] {
                     background: linear-gradient(180deg, #0b3d02 0%, #145214 100%) !important;
                     border-right: 1px solid rgba(255,255,255,0.06) !important;
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    height: 100vh !important;
+                    overflow: auto !important;
+                    z-index: 999 !important;
                 }
                 .sidebar-logo-container {
                     margin: -25px -25px 0px -25px;
@@ -1055,6 +1063,17 @@ class NewPages:
                     with col:
                         st.image(Config.IMG_HOME_PREVIEWS[idx], use_column_width=True)
 
+            st.markdown("---")
+            # Added start conversation button on profile page
+            if st.button("Iniciar Conversa 🌶️", key="start_from_profile", use_container_width=True):
+                st.session_state.update({
+                    'chat_started': True,
+                    'current_page': 'chat',
+                    'audio_sent': False
+                })
+                save_persistent_data()
+                st.rerun()
+
     @staticmethod
     def show_offers_page():
         # Simplified offers page — removed direct checkout links and heavy VIP upsell
@@ -1080,7 +1099,7 @@ class NewPages:
         plans = [
             {"name": "1 Mês", "price": "R$ 29,90", "benefits": ["Acesso total", "Conteúdo novo diário", "Chat privado"], "tag": "COMUM"},
             {"name": "3 Meses", "price": "R$ 69,90", "benefits": ["25% de desconto", "Bônus: 1 vídeo exclusivo", "Prioridade no chat"], "tag": "MAIS POPULAR"},
-            {"name": "1 Ano", "price": "R$ 199,90", "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"], "tag": "MELHOR CUSTO-BENEFÍCIO"}
+            {"name": "1 Ano", "price": "R$ 199,90", "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"], "tag": "MELHOR CUSTO-BENÍCIO"}
         ]
 
         for plan in plans:
