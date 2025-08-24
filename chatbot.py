@@ -1,4 +1,3 @@
-```python
 # ======================
 # IMPORTAÇÕES
 # ======================
@@ -10,11 +9,27 @@ import random
 import sqlite3
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
+import logging
+from logging.handlers import RotatingFileHandler
+import hashlib
+
+# ======================
+# CONFIGURAÇÃO DE LOGGING
+# ======================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        RotatingFileHandler('chatbot.log', maxBytes=1000000, backupCount=5),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("MylleAlvesBot")
 
 # ======================
 # CONFIGURAÇÃO INICIAL
@@ -89,7 +104,7 @@ hide_streamlit_style = """
         transition: all 0.3s ease !important;
     }
     .cta-button:hover {
-        transform: translateY(-2px) !important; 
+        transform: translateY(-2px) !important;
         box-shadow: 0 4px 8px rgba(255, 20, 147, 0.4) !important;
     }
     .audio-message {
@@ -103,6 +118,22 @@ hide_streamlit_style = """
     .audio-icon {
         font-size: 24px !important;
         margin-right: 10px !important;
+    }
+    .credit-counter {
+        background: rgba(255, 102, 179, 0.2);
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        margin-left: 10px;
+        display: inline-block;
+    }
+    .abuse-warning {
+        background: rgba(255, 0, 0, 0.1);
+        border: 1px solid #ff3333;
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+        text-align: center;
     }
 </style>
 """
@@ -126,10 +157,11 @@ class Config:
         "MOLHADINHA": "https://i.ibb.co/NnTYdSw6/BY-Admiregirls-su-Admiregirls-su-040.jpg", 
         "SAFADINHA": "https://i.ibb.co/GvqtJ17h/BY-Admiregirls-su-Admiregirls-su-194.jpg"
     }
+    # Atualizando as URLs da galeria conforme solicitado
     IMG_GALLERY = [
-        "https://i.ibb.co/VY42ZMST/BY-Admiregirls-su-Admiregirls-su-255.jpg",
-        "https://i.ibb.co/Q7s9Zwcr/BY-Admiregirls-su-Admiregirls-su-183.jpg",
-        "https://i.ibb.co/0jRMxrFB/BY-Admiregirls-su-Admiregirls-su-271.jpg"
+        "https://ibb.co/MDmGhjnX",
+        "https://ibb.co/fGD0zvmY", 
+        "https://ibb.co/tSVc9Rzd"
     ]
     SOCIAL_LINKS = {
         "instagram": "https://instagram.com/myllealves",
@@ -155,6 +187,115 @@ class Config:
         "tenho_conteudos_que_vai_amar": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/eu%20tenho%20uns%20conteudos%20aqui%20que%20vc%20vai%20amar.mp3",
         "esperando_responder": "https://github.com/andrearagaoregis/MylleAlves/raw/refs/heads/main/assets/vida%20to%20esperando%20voce%20me%20responder%20gatinho.mp3"
     }
+    
+    # Configurações de proteção contra abuso
+    MAX_MESSAGES_PER_MINUTE = 10
+    ABUSE_COOLDOWN_MINUTES = 5
+    OFFENSIVE_WORDS = ["puta", "vadia", "cadela", "cachorra", "filho da puta", "fdp", "caralho", "porra", "viado", "bicha"]
+    
+    # Configurações de cache
+    CACHE_SIZE = 100
+    CACHE_TTL_SECONDS = 300  # 5 minutos
+    
+    # Configurações de tentativas gratuitas
+    MAX_FREE_PREVIEWS = 3
+
+# ======================
+# SISTEMA DE CACHE INTELIGENTE
+# ======================
+class ResponseCache:
+    _instance = None
+    _cache = {}
+    _timestamps = {}
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    @classmethod
+    def get(cls, key: str):
+        """Obtém um item do cache se existir e não estiver expirado"""
+        if key in cls._cache:
+            # Verificar se o cache expirou
+            if time.time() - cls._timestamps[key] < Config.CACHE_TTL_SECONDS:
+                logger.info(f"Cache hit para chave: {key}")
+                return cls._cache[key]
+            else:
+                # Remover item expirado
+                del cls._cache[key]
+                del cls._timestamps[key]
+        logger.info(f"Cache miss para chave: {key}")
+        return None
+    
+    @classmethod
+    def set(cls, key: str, value):
+        """Adiciona um item ao cache"""
+        # Remover itens mais antigos se o cache estiver cheio
+        if len(cls._cache) >= Config.CACHE_SIZE:
+            oldest_key = min(cls._timestamps, key=cls._timestamps.get)
+            del cls._cache[oldest_key]
+            del cls._timestamps[oldest_key]
+        
+        cls._cache[key] = value
+        cls._timestamps[key] = time.time()
+        logger.info(f"Item adicionado ao cache: {key}")
+    
+    @classmethod
+    def generate_key(cls, prompt: str, session_id: str) -> str:
+        """Gera uma chave única para o cache baseada no prompt e session_id"""
+        return hashlib.md5(f"{prompt}_{session_id}".encode()).hexdigest()
+
+# ======================
+# SISTEMA DE PROTEÇÃO CONTRA ABUSO
+# ======================
+class AbuseProtection:
+    _instance = None
+    _user_activity = defaultdict(lambda: {
+        'message_timestamps': deque(),
+        'is_blocked': False,
+        'blocked_until': None
+    })
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def check_user_activity(self, user_id: str) -> Tuple[bool, Optional[str]]:
+        """Verifica se o usuário está abusando do sistema"""
+        user_data = self._user_activity[user_id]
+        
+        # Verificar se o usuário está bloqueado
+        if user_data['is_blocked'] and user_data['blocked_until']:
+            if datetime.now() < user_data['blocked_until']:
+                remaining = user_data['blocked_until'] - datetime.now()
+                return False, f"Você foi temporariamente bloqueado por excesso de mensagens. Tente novamente em {int(remaining.total_seconds() / 60)} minutos."
+            else:
+                # Desbloquear usuário após o tempo de cooldown
+                user_data['is_blocked'] = False
+                user_data['blocked_until'] = None
+        
+        # Limpar timestamps antigos (mais de 1 minuto)
+        current_time = time.time()
+        while (user_data['message_timestamps'] and 
+               current_time - user_data['message_timestamps'][0] > 60):
+            user_data['message_timestamps'].popleft()
+        
+        # Verificar se excedeu o limite de mensagens
+        if len(user_data['message_timestamps']) >= Config.MAX_MESSAGES_PER_MINUTE:
+            user_data['is_blocked'] = True
+            user_data['blocked_until'] = datetime.now() + timedelta(minutes=Config.ABUSE_COOLDOWN_MINUTES)
+            return False, f"Você excedeu o limite de mensagens. Tente novamente em {Config.ABUSE_COOLDOWN_MINUTES} minutos."
+        
+        # Adicionar timestamp da mensagem atual
+        user_data['message_timestamps'].append(current_time)
+        return True, None
+    
+    def check_offensive_language(self, text: str) -> bool:
+        """Verifica se o texto contém linguagem ofensiva"""
+        text_lower = text.lower()
+        return any(word in text_lower for word in Config.OFFENSIVE_WORDS)
 
 # ======================
 # APRENDIZADO DE MÁQUINA
@@ -185,8 +326,8 @@ class LearningEngine:
             
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao carregar dados de aprendizado: {str(e)}")
     
     def save_user_preference(self, user_id: str, preference_type: str, preference_value: str, strength: float = 1.0):
         try:
@@ -198,8 +339,8 @@ class LearningEngine:
                      (user_id, preference_type, preference_value, strength))
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao salvar preferência do usuário: {str(e)}")
     
     def get_user_preferences(self, user_id: str) -> Dict:
         preferences = {}
@@ -213,8 +354,8 @@ class LearningEngine:
                     preferences[row[0]] = {}
                 preferences[row[0]][row[1]] = row[2]
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao obter preferências do usuário: {str(e)}")
         return preferences
     
     def save_lead_info(self, user_id: str, name: str = None, location: str = None):
@@ -235,8 +376,8 @@ class LearningEngine:
             
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao salvar informações do lead: {str(e)}")
     
     def get_lead_info(self, user_id: str) -> Dict:
         try:
@@ -248,8 +389,8 @@ class LearningEngine:
             
             if result:
                 return {"name": result[0], "location": result[1]}
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao obter informações do lead: {str(e)}")
         return {"name": None, "location": None}
     
     def analyze_conversation_pattern(self, messages: List[Dict]) -> None:
@@ -309,8 +450,8 @@ class LearningEngine:
                             topic, 
                             user_text.lower().count(keyword) * 0.1
                         )
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Erro ao analisar padrão de conversa: {str(e)}")
 
 # ======================
 # PERSISTÊNCIA DE ESTADO
@@ -380,7 +521,9 @@ def save_persistent_data() -> None:
         'connection_complete', 'chat_started',
         'current_page', 'session_id', 'last_cta_time', 'preview_shown',
         'conversation_stage', 'lead_name', 'last_interaction_time', 
-        'user_info_collected', 'last_user_message_time', 'audio_count'
+        'user_info_collected', 'last_user_message_time', 'audio_count',
+        'free_previews_remaining', 'last_message_timestamps', 'is_blocked',
+        'blocked_until', 'message_buffer', 'last_message_time'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -406,7 +549,7 @@ class Persona:
     8. Mantém respostas curtas e diretas (máximo 2-3 frases)
     9. Sempre pergunta o nome e de onde é o lead naturalmente
     10. Sugere seguir nas redes sociais em momentos oportunos
-    11. Uso áudios ocasionalmente (15% das respostas) para maior realismo
+    11. Usa áudios ocasionalmente (15% das respostas) para maior realismo
     12. Responde desconfianças sobre ser fake com áudios específicos
 
     [ABERTURA DA CONVERSA]
@@ -474,6 +617,17 @@ class CTAEngine:
         hot_count = sum(1 for word in hot_words if word in context)
         has_direct_ask = any(ask in context for ask in direct_asks)
         
+        # Verificar número de mensagens do usuário para direcionar para vendas
+        user_message_count = sum(1 for msg in conversation_history if msg["role"] == "user")
+        
+        # Se o usuário enviou entre 3-5 mensagens, aumentar chance de CTA
+        if 3 <= user_message_count <= 5:
+            return (hot_count >= 1) or has_direct_ask or (random.random() < 0.7)
+        
+        # Se o usuário enviou mais de 5 mensagens, alta chance de CTA
+        if user_message_count > 5:
+            return (hot_count >= 1) or has_direct_ask or (random.random() < 0.9)
+        
         return (hot_count >= 2) or has_direct_ask
 
     def should_show_preview(self) -> bool:
@@ -510,9 +664,24 @@ class CTAEngine:
                 audio_key = "boa_noite_nao_sou_fake"
                 
             return {
-                "text": "Não sou fake não, amor! Ouça minha voz... 😘",
+                "text": "Não sou fake, amor! Sou real e bem quente... 😏 Ouça minha voz!",
                 "audio": audio_key,
                 "cta": {"show": False}
+            }
+        
+        # Análise de sentimento do usuário
+        frustration_words = ["chato", "bravo", "irritado", "odeio", "raiva", "puto", "péssimo", "horrível", "nunca mais", "arrependido", "insatisfeito"]
+        if any(word in user_input for word in frustration_words):
+            return {
+                "text": "Poxa, sinto muito se te deixei chateado... 😔 O que posso fazer para melhorar?",
+                "cta": {"show": False}
+            }
+        
+        enthusiasm_words = ["adoro", "amo", "incrível", "maravilhoso", "perfeito", "excelente", "sensacional", "fantástico", "demais", "top", "melhor"]
+        if any(word in user_input for word in enthusiasm_words):
+            return {
+                "text": "Que bom que você está gostando! 😍 Quer ver ainda mais? Tenho conteúdos exclusivos que vão te deixar maluco...",
+                "cta": {"show": True, "label": "🚀 Ver Conteúdo Exclusivo", "target": "offers"}
             }
         
         # Verificar preferências do usuário
@@ -535,7 +704,7 @@ class CTAEngine:
         if any(p in user_input for p in ["foto", "fotos", "buceta", "peito", "bunda", "nude", "nua"]):
             return {
                 "text": random.choice([
-                    "Ah, quer me ver? 😈 Tenho umas fotinhas bem quentes... mas o que é realmente bom tá no pack",
+                    "Ah, quer me ver? 😈 Tenho unsas fotinhas bem quentes... mas o que é realmente bom tá no pack",
                     "Minhas fotos são bem ousadas, hein... 😏 Mas aqui eu só mostro preview, o conteúdo completo é pago",
                     "Eu adoro tirar fotos... especialmente as mais picantes 🔥 Quer ver tudo? Tem que pegar o pack"
                 ]),
@@ -616,7 +785,7 @@ class DatabaseService:
             """, (user_id, session_id, datetime.now(), role, content))
             conn.commit()
         except sqlite3.Error as e:
-            st.error(f"Erro ao salvar mensagem: {e}")
+            logger.error(f"Erro ao salvar mensagem: {e}")
 
     @staticmethod
     def load_messages(conn: sqlite3.Connection, user_id: str, session_id: str) -> List[Dict]:
@@ -637,9 +806,19 @@ class ApiService:
         self.learning_engine = LearningEngine()
     
     @staticmethod
-    @lru_cache(maxsize=100)
     def ask_gemini(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
-        return ApiService._call_gemini_api(prompt, session_id, conn)
+        # Verificar cache primeiro
+        cache_key = ResponseCache.generate_key(prompt, session_id)
+        cached_response = ResponseCache.get(cache_key)
+        if cached_response:
+            return cached_response
+        
+        # Se não estiver em cache, fazer a chamada à API
+        response = ApiService._call_gemini_api(prompt, session_id, conn)
+        
+        # Salvar no cache
+        ResponseCache.set(cache_key, response)
+        return response
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn: sqlite3.Connection) -> Dict:
@@ -683,7 +862,7 @@ class ApiService:
             
             try:
                 if '```json' in gemini_response:
-                    resposta = json.loads(gemini_response.split('```json
+                    resposta = json.loads(gemini_response.split('```json')[1].split('```')[0].strip())
                 else:
                     resposta = json.loads(gemini_response)
                 
@@ -709,10 +888,10 @@ class ApiService:
                 return {"text": gemini_response, "cta": {"show": False}}
                 
         except requests.exceptions.RequestException as e:
-            st.error(f"Erro de conexão: {str(e)}")
+            logger.error(f"Erro de conexão: {str(e)}")
             return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
         except Exception as e:
-            st.error(f"Erro inesperado: {str(e)}")
+            logger.error(f"Erro inesperado: {str(e)}")
             return CTAEngine().generate_response_based_on_learning(prompt, get_user_id())
 
 # ======================
@@ -792,7 +971,7 @@ class UiService:
             <div style="font-size: 3rem; color: #4CAF50;">🔥</div>
             <h3 style="color: #4CAF50; margin-bottom: 5px;">Pronta para você!</h3>
         </div>
-        """, unsafe_allow_html=True)
+        ""', unsafe_allow_html=True)
         
         time.sleep(1.5)
         call_container.empty()
@@ -917,6 +1096,14 @@ class UiService:
             </div>
             """, unsafe_allow_html=True)
             
+            # Mostrar contador de visualizações gratuitas
+            if st.session_state.get('free_previews_remaining', Config.MAX_FREE_PREVIEWS) > 0:
+                st.markdown(f"""
+                <div style="text-align: center; margin: 10px 0; padding: 5px; background: rgba(255, 102, 179, 0.1); border-radius: 5px;">
+                    <p style="color: #ff66b3; margin: 0; font-size: 0.8em;">💎 Visualizações gratuitas: {st.session_state.free_previews_remaining}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             st.markdown("---")
             
             # Botões de redes sociais (estilo igual ao menu)
@@ -952,6 +1139,37 @@ class UiService:
 
     @staticmethod
     def show_gallery_page() -> None:
+        # Verificar se ainda há visualizações gratuitas disponíveis
+        if st.session_state.free_previews_remaining <= 0:
+            st.markdown("""
+            <div style="
+                background: rgba(255, 20, 147, 0.1);
+                padding: 15px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                text-align: center;
+            ">
+                <h3 style="color: #ff66b3; margin: 0;">😔 Visualizações Esgotadas</h3>
+                <p style="color: #aaa; margin: 5px 0 0; font-size: 0.9em;">Você usou todas as suas visualizações gratuitas</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div style="text-align: center; margin: 20px 0;">
+                <p style="color: #ff66b3; font-style: italic;">"Não fique só na vontade... adquira um pack VIP para ver TUDO que preparei para você 😈"</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🚀 Quero Ver Tudo Agora", key="vip_button_gallery", use_container_width=True, type="primary"):
+                st.session_state.current_page = "offers"
+                st.rerun()
+            
+            if st.button("💬 Voltar ao Chat", key="back_from_gallery"):
+                st.session_state.current_page = "chat"
+                save_persistent_data()
+                st.rerun()
+            return
+        
         st.markdown("""
         <div style="
             background: rgba(255, 20, 147, 0.1);
@@ -973,6 +1191,16 @@ class UiService:
                         caption=f"💎 Preview #{idx+1}")
                 st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -10px;">✨ Exclusivo VIP</div>""", 
                           unsafe_allow_html=True)
+        
+        # Decrementar contador de visualizações
+        st.session_state.free_previews_remaining -= 1
+        save_persistent_data()
+        
+        st.markdown(f"""
+        <div style="text-align: center; margin: 20px 0; padding: 10px; background: rgba(255, 102, 179, 0.1); border-radius: 10px;">
+            <p style="color: #ff66b3; margin: 0;">Você tem {st.session_state.free_previews_remaining} visualizações gratuitas restantes.</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -1158,6 +1386,25 @@ class NewPages:
                 """, unsafe_allow_html=True)
 
         st.markdown("---")
+        
+        # Simulação de confirmação de compra
+        st.markdown("""
+        <div style="
+            background: rgba(255, 102, 179, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        ">
+            <h3 style="color: #ff66b3; margin-bottom: 10px;">✅ Confirmação de Compra</h3>
+            <p style="color: #aaa; margin-bottom: 15px;">Seu acesso chegará instantâneo no email cadastrado na compra! 📧</p>
+            
+            <div style="background: rgba(0, 200, 0, 0.1); padding: 15px; border-radius: 8px; border: 1px solid #00cc00;">
+                <p style="color: #00cc00; margin: 0; font-weight: bold;">✔️ Compra confirmada! Acesso liberado!</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("""
         <div style="text-align: center; margin: 20px 0;">
             <p style="color: #ff66b3; font-style: italic; font-size: 1.1em;">
@@ -1194,7 +1441,13 @@ class ChatService:
             'last_interaction_time': time.time(),
             'user_info_collected': False,
             'last_user_message_time': time.time(),
-            'audio_count': 0
+            'audio_count': 0,
+            'free_previews_remaining': Config.MAX_FREE_PREVIEWS,
+            'last_message_timestamps': deque(maxlen=Config.MAX_MESSAGES_PER_MINUTE),
+            'is_blocked': False,
+            'blocked_until': None,
+            'message_buffer': [],
+            'last_message_time': 0
         }
         
         for key, default in defaults.items():
@@ -1203,9 +1456,6 @@ class ChatService:
 
         # Iniciar conversa automaticamente se for novo usuário
         if len(st.session_state.messages) == 0 and st.session_state.chat_started:
-            # Esperar 2 segundos ao iniciar o chat
-            time.sleep(2)
-            
             # Simular digitação na primeira mensagem
             typing_container = st.empty()
             typing_container.markdown("""
@@ -1228,9 +1478,9 @@ class ChatService:
             typing_container.empty()
             
             opening_messages = [
-                "Oi, sou Mylle Alves, vendo conteúdo adulto exclusivo. Você tem interesse? 😏 Me conta, como me achou?",
-                "E aí, sou Mylle Alves, vendo conteúdo adulto exclusivo. Você tem interesse? 😏 Me fala seu nome, amor...",
-                "Olá, sou Mylle Alves, vendo conteúdo adulto exclusivo. Você tem interesse? 💋 Vamos começar com uma pergunta: de onde você é?"
+                "Oi gostoso 😏... finalmente chegou até mim! Já estava esperando você... me conta, como me achou? 😈",
+                "E aí, bonitão 👀... caiu direto na toca da raposa, hein? Me fala seu nome, amor... 😏",
+                "Olá, amor 💋... que delícia te ver aqui! Vamos começar com uma pergunta: de onde você é? 😈"
             ]
             
             initial_message = {
@@ -1350,6 +1600,39 @@ class ChatService:
     def process_user_input(conn: sqlite3.Connection) -> None:
         ChatService.display_chat_history()
         
+        # Verificar proteção contra abuso
+        abuse_protection = AbuseProtection()
+        user_id = get_user_id()
+        
+        # Verificar se o usuário está bloqueado
+        if st.session_state.is_blocked and st.session_state.blocked_until:
+            if datetime.now() < st.session_state.blocked_until:
+                remaining = st.session_state.blocked_until - datetime.now()
+                st.markdown(f"""
+                <div class="abuse-warning">
+                    <p>⏰ Você foi temporariamente bloqueado por excesso de mensagens.</p>
+                    <p>Tente novamente em {int(remaining.total_seconds() / 60)} minutos.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                return
+            else:
+                # Desbloquear usuário após o tempo de cooldown
+                st.session_state.is_blocked = False
+                st.session_state.blocked_until = None
+        
+        # Verificar se o usuário está enviando mensagens muito rapidamente
+        is_allowed, error_msg = abuse_protection.check_user_activity(user_id)
+        if not is_allowed:
+            st.markdown(f"""
+            <div class="abuse-warning">
+                <p>⚠️ {error_msg}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            st.session_state.is_blocked = True
+            st.session_state.blocked_until = datetime.now() + timedelta(minutes=Config.ABUSE_COOLDOWN_MINUTES)
+            save_persistent_data()
+            return
+        
         # Verificar se usuário está inativo
         if ChatService.check_inactive_user():
             # Enviar mensagem de follow-up (alternando entre texto e áudio)
@@ -1386,7 +1669,41 @@ class ChatService:
         user_input = st.chat_input("💬 Digite sua mensagem...", key="chat_input")
         
         if user_input:
+            # Verificar linguagem ofensiva
+            if abuse_protection.check_offensive_language(user_input):
+                st.session_state.messages.append({"role": "assistant", "content": json.dumps({
+                    "text": "Não tolero esse tipo de linguagem. Se continuar, vou ter que encerrar nossa conversa.",
+                    "cta": {"show": False}
+                })})
+                DatabaseService.save_message(conn, get_user_id(), st.session_state.session_id, "assistant", json.dumps({
+                    "text": "Não tolero esse tipo de linguagem. Se continuar, vou ter que encerrar nossa conversa.",
+                    "cta": {"show": False}
+                }))
+                save_persistent_data()
+                st.rerun()
+                return
+            
             cleaned_input = re.sub(r'<[^>]*>', '', user_input)[:500]
+            
+            # Buffer de mensagens fragmentadas
+            current_time = time.time()
+            time_since_last = current_time - st.session_state.last_message_time
+            
+            # Se a mensagem foi enviada dentro de 5 segundos da última, acumula no buffer
+            if time_since_last < 5 and st.session_state.message_buffer:
+                st.session_state.message_buffer.append(cleaned_input)
+                # Processar buffer após 1 segundo de inatividade
+                time.sleep(1)
+                if time.time() - current_time >= 1:  # Se não houve nova mensagem
+                    # Juntar todas as mensagens do buffer
+                    full_message = " ".join(st.session_state.message_buffer)
+                    st.session_state.message_buffer = []
+                    cleaned_input = full_message
+            else:
+                # Se passou mais de 5 segundos, processa a mensagem normalmente
+                st.session_state.message_buffer = [cleaned_input]
+            
+            st.session_state.last_message_time = current_time
             
             if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
                 st.session_state.messages.append({"role": "assistant", "content": json.dumps({
@@ -1423,8 +1740,6 @@ class ChatService:
                     {cleaned_input}
                 </div>
                 """, unsafe_allow_html=True)
-            
-            time.sleep(5)  # Esperar 5 segundos antes de começar a digitar
             
             with st.chat_message("assistant", avatar=Config.IMG_PROFILE):
                 # Simular digitação (0.5 segundo por caractere, mínimo 10s)
@@ -1527,4 +1842,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
