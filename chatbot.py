@@ -401,7 +401,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {{\"show\": false}}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {\"show\": false}\n}}"}]
                 }
             ],
             "generationConfig": {
@@ -831,7 +831,7 @@ class UiService:
             with col:
                 st.image(
                     Config.IMG_GALLERY[idx],
-                    use_container_width=True,
+                    use_column_width=True,
                     caption=f"Preview {idx+1}"
                 )
                 st.markdown(f"""
@@ -988,67 +988,72 @@ class UiService:
 # ======================
 class NewPages:
     @staticmethod
-    def show_home_page():
-        st.markdown("""
-        <style>
-            .hero-banner {
-                background: linear-gradient(135deg, #075e54, #128c7e);
-                padding: 60px 20px;
-                text-align: center;
-                border-radius: 12px;
-                color: white;
-                margin-bottom: 20px;
-                border: 1px solid rgba(255,255,255,0.04);
-            }
-            .preview-img {
-                border-radius: 8px;
-                filter: blur(2px) brightness(0.85);
-                transition: all 0.3s;
-            }
-            .preview-img:hover {
-                filter: blur(0) brightness(1);
-            }
-        </style>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="hero-banner">
-            <h1 style="color: #fff;">Mylle Premium</h1>
-            <p>Conteúdo exclusivo que você não encontra em nenhum outro lugar...</p>
-            <div style="margin-top: 16px;">
-                <a href="#vip" style="
-                    background: #1de9b6;
-                    color: #004d40;
-                    padding: 10px 20px;
-                    border-radius: 30px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    display: inline-block;
-                ">Quero Acessar Tudo</a>
+    def show_home_page(conn):
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.image(Config.IMG_PROFILE, use_column_width=True)
+            st.markdown("""
+            <div style="text-align: center; margin-top: 10px;">
+                <h3 style="color: #ff66b3;">Mylle Alves</h3>
+                <p style="color: #888;">Online agora 💚</p>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        cols = st.columns(3)
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            st.markdown("""
+            <div style="
+                background: rgba(255, 102, 179, 0.1);
+                padding: 15px;
+                border-radius: 10px;
+            ">
+                <h4>📊 Meu Perfil</h4>
+                <p>👙 85-60-90</p>
+                <p>📏 1.68m</p>
+                <p>🎂 22 anos</p>
+                <p>📍 São Paulo</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        for col, img in zip(cols, Config.IMG_HOME_PREVIEWS):
-            with col:
-                st.image(img, use_container_width=True, caption="Conteúdo bloqueado", output_format="auto")
-                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -8px;">VIP Only</div>""", unsafe_allow_html=True)
-
-        st.markdown("---")
-        
-        if st.button("Iniciar Conversa Privada", 
-                    use_container_width=True,
-                    type="primary"):
-            st.session_state.current_page = "chat"
-            save_persistent_data()
-            st.rerun()
-
-        if st.button("Voltar ao chat", key="back_from_home"):
-            st.session_state.current_page = "chat"
-            save_persistent_data()
-            st.rerun()
+        with col2:
+            st.markdown("""
+            <div style="
+                background: linear-gradient(45deg, #ff66b3, #ff1493);
+                padding: 20px;
+                border-radius: 10px;
+                color: white;
+                text-align: center;
+                margin-bottom: 20px;
+            ">
+                <h2>💋 Bem-vindo ao Meu Mundo</h2>
+                <p>Conversas quentes e conteúdo exclusivo esperando por você!</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div style="
+                background: rgba(255, 102, 179, 0.1);
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+            ">
+                <h4>🎯 O que você encontra aqui:</h4>
+                <p>• 💬 Chat privado comigo</p>
+                <p>• 📸 Fotos exclusivas e sensuais</p>
+                <p>• 🎥 Vídeos quentes e explícitos</p>
+                <p>• 🎁 Conteúdo personalizado</p>
+                <p>• 🔞 Experiências únicas</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Preview images
+            st.markdown("### 🌶️ Prévia do Conteúdo")
+            preview_cols = st.columns(2)
+            for idx, col in enumerate(preview_cols):
+                if idx < len(Config.IMG_HOME_PREVIEWS):
+                    with col:
+                        st.image(Config.IMG_HOME_PREVIEWS[idx], use_column_width=True)
 
     @staticmethod
     def show_offers_page():
@@ -1492,7 +1497,7 @@ def main():
         st.stop()
     
     if st.session_state.current_page == "home":
-        NewPages.show_home_page()
+        NewPages.show_home_page(conn)
     elif st.session_state.current_page == "gallery":
         UiService.show_gallery_page(conn)
     elif st.session_state.current_page == "offers":
