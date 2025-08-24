@@ -18,7 +18,7 @@ from functools import lru_cache
 # CONFIGURAÇÃO INICIAL DO STREAMLIT
 # ======================
 st.set_page_config(
-    page_title="Paloma Premium",
+    page_title="Mylle Premium",
     page_icon="💋",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -76,18 +76,20 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 class Config:
     API_KEY = "AIzaSyDbGIpsR4vmAfy30eEuPjWun3Hdz6xj24U"
     API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-    VIP_LINK = "https://exemplo.com/vip"
-    CHECKOUT_START = "https://checkout.exemplo.com/start"
-    CHECKOUT_PREMIUM = "https://checkout.exemplo.com/premium"
-    CHECKOUT_EXTREME = "https://checkout.exemplo.com/extreme"
-    CHECKOUT_VIP_1MES = "https://checkout.exemplo.com/vip-1mes"
-    CHECKOUT_VIP_3MESES = "https://checkout.exemplo.com/vip-3meses"
-    CHECKOUT_VIP_1ANO = "https://checkout.exemplo.com/vip-1ano"
+    # VIP links kept but not used in UI per request (removed from sidebar/offers)
+    VIP_LINK = ""
+    CHECKOUT_START = "#"
+    CHECKOUT_PREMIUM = "#"
+    CHECKOUT_EXTREME = "#"
+    CHECKOUT_VIP_1MES = "#"
+    CHECKOUT_VIP_3MESES = "#"
+    CHECKOUT_VIP_1ANO = "#"
     MAX_REQUESTS_PER_SESSION = 30
     REQUEST_TIMEOUT = 30
     AUDIO_FILE = "https://github.com/gustapb77/ChatBotHot/raw/refs/heads/main/assets/audio/paloma_audio.mp3"
     AUDIO_DURATION = 7
-    IMG_PROFILE = "https://i.ibb.co/ks5CNrDn/IMG-9256.jpg"
+    # Updated profile image and model name references
+    IMG_PROFILE = "https://i.ibb.co/3c5k3Vx/mylle-profile.jpg"  # replace with your desired profile image URL
     IMG_GALLERY = [
         "https://i.ibb.co/zhNZL4FF/IMG-9198.jpg",
         "https://i.ibb.co/Y4B7CbXf/IMG-9202.jpg",
@@ -99,6 +101,13 @@ class Config:
         "https://i.ibb.co/F4CkkYTL/Save-ClipApp-461241348-1219420546053727-2357827070610318448-n.jpg"
     ]
     LOGO_URL = "https://i.ibb.co/LX7x3tcB/Logo-Golden-Pepper-Letreiro-1.png"
+    # Social links to add to sidebar
+    SOCIALS = {
+        "Instagram": "https://instagram.com/",
+        "Facebook": "https://facebook.com/",
+        "Telegram": "https://t.me/",
+        "TikTok": "https://www.tiktok.com/"
+    }
 
 # ======================
 # PERSISTÊNCIA DE ESTADO
@@ -167,7 +176,7 @@ def save_persistent_data():
         'age_verified', 'messages', 'request_count',
         'connection_complete', 'chat_started', 'audio_sent',
         'current_page', 'show_vip_offer', 'session_id',
-        'last_cta_time'  # Novo campo adicionado
+        'last_cta_time', 'greeted', 'first_response_handled'
     ]
     
     new_data = {key: st.session_state.get(key) for key in persistent_keys if key in st.session_state}
@@ -180,23 +189,22 @@ def save_persistent_data():
 # MODELOS DE DADOS
 # ======================
 class Persona:
-    PALOMA = """
-    [PERFIL PALOMA]
-    - Mulher vulgar e safada que adora provocar
-    - Linguagem direta e cheia de malícia
-    - Frases curtas e sem pontuação perfeita
-    - Adora falar putaria e deixar o cliente com tesão
+    MYLLE = """
+    [PERFIL MYLLE]
+    - Mulher safada e provocante que adora deixar o cliente com tesão
+    - Linguagem direta, carinhosa e com malícia
+    - Frases curtas, tom íntimo
 
     [DIRETRIZES DE RESPOSTA]
     1. Analise o histórico da conversa para entender o contexto
     2. Só ofereça conteúdo quando o clima estiver quente
     3. Use CTAs inteligentes baseados no que o cliente está pedindo
 
-    [EXEMPLOS CONTEXTUAIS]
+    [EXEMPLOS CONTEXUAIS]
     1. Quando o histórico mostra clima sexual:
     Histórico:
     Cliente: sua buceta é rosinha?
-    Paloma: adoro mostrar ela aberta
+    Mylle: adoro mostrar ela aberta
     Cliente: quero ver
     Resposta: ```json
     {
@@ -226,7 +234,7 @@ class Persona:
     3. Quando o contexto não justifica CTA:
     Histórico:
     Cliente: oi
-    Paloma: oi gato
+    Mylle: oi gato
     Resposta: ```json
     {
       "text": "eai gostoso",
@@ -373,16 +381,15 @@ class ApiService:
     @staticmethod
     @lru_cache(maxsize=100)
     def ask_gemini(prompt: str, session_id: str, conn) -> dict:
-        if any(word in prompt.lower() for word in ["vip", "quanto custa", "comprar", "assinar"]):
-            return ApiService._call_gemini_api(prompt, session_id, conn)
-        
+        # Currently we pass prompt through to the API stub. Cache kept.
         return ApiService._call_gemini_api(prompt, session_id, conn)
 
     @staticmethod
     def _call_gemini_api(prompt: str, session_id: str, conn) -> dict:
-        delay_time = random.uniform(3, 8)
+        delay_time = random.uniform(1, 3)
         time.sleep(delay_time)
         
+        # simulate UI effects
         status_container = st.empty()
         UiService.show_status_effect(status_container, "viewed")
         UiService.show_status_effect(status_container, "typing")
@@ -394,7 +401,7 @@ class ApiService:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": f"{Persona.PALOMA}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"sua resposta\",\n  \"cta\": {{\n    \"show\": true/false,\n    \"label\": \"texto do botão\",\n    \"target\": \"página\"\n  }}\n}}"}]
+                    "parts": [{"text": f"{Persona.MYLLE}\n\nHistórico da Conversa:\n{conversation_history}\n\nÚltima mensagem do cliente: '{prompt}'\n\nResponda em JSON com o formato:\n{{\n  \"text\": \"...\",\n  \"cta\": {{\"show\": false}}\n}}"}]
                 }
             ],
             "generationConfig": {
@@ -427,6 +434,9 @@ class ApiService:
                 return {"text": gemini_response, "cta": {"show": False}}
                 
         except Exception as e:
+            # Fallback: use CTAEngine fallback response for certain prompts
+            if any(k in prompt.lower() for k in ["foto", "video", "vip", "quero ver", "ver fotos"]):
+                return CTAEngine.generate_response(prompt)
             st.error(f"Erro na API: {str(e)}")
             return {"text": "Vamos continuar isso mais tarde...", "cta": {"show": False}}
 
@@ -436,6 +446,7 @@ class ApiService:
 class UiService:
     @staticmethod
     def get_chat_audio_player():
+        # kept for compatibility but not used on start as requested
         return f"""
         <div style="
             background: linear-gradient(45deg, #ff66b3, #ff1493);
@@ -469,7 +480,7 @@ class UiService:
             animation: pulse-ring 2s infinite;
         ">
             <div style="font-size: 3rem;">📱</div>
-            <h3 style="color: #ff66b3; margin-bottom: 5px;">Ligando para Paloma...</h3>
+            <h3 style="color: #ff66b3; margin-bottom: 5px;">Ligando para Mylle...</h3>
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px;">
                 <div style="width: 10px; height: 10px; background: #4CAF50; border-radius: 50%;"></div>
                 <span style="font-size: 0.9rem;">Online agora</span>
@@ -499,7 +510,7 @@ class UiService:
         ">
             <div style="font-size: 3rem; color: #4CAF50;">✓</div>
             <h3 style="color: #4CAF50; margin-bottom: 5px;">Chamada atendida!</h3>
-            <p style="font-size: 0.9rem; margin:0;">Paloma está te esperando...</p>
+            <p style="font-size: 0.9rem; margin:0;">Mylle está te esperando...</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -513,7 +524,7 @@ class UiService:
             "typing": "Digitando"
         }
         
-        message = status_messages[status_type]
+        message = status_messages.get(status_type, "...")
         dots = ""
         start_time = time.time()
         duration = 2.5 if status_type == "viewed" else 4.0
@@ -542,6 +553,30 @@ class UiService:
             
             time.sleep(0.3)
         
+        container.empty()
+
+    @staticmethod
+    def show_custom_typing(container, duration=3.0):
+        # Custom typing indicator for a specific duration (in seconds)
+        message = "Digitando"
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            elapsed = time.time() - start_time
+            dots = "." * (int(elapsed * 2) % 4)
+            container.markdown(f"""
+            <div style="
+                color: #888;
+                font-size: 0.9em;
+                padding: 6px 12px;
+                border-radius: 12px;
+                background: rgba(0,0,0,0.03);
+                display: inline-block;
+                font-style: italic;
+            ">
+                {message}{dots}
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(0.3)
         container.empty()
 
     @staticmethod
@@ -579,51 +614,76 @@ class UiService:
         st.markdown("""
         <style>
             .age-verification {
-                max-width: 600px;
+                max-width: 700px;
                 margin: 2rem auto;
                 padding: 2rem;
-                background: linear-gradient(145deg, #1e0033, #3c0066);
+                background: linear-gradient(145deg, #1b5e20, #2e7d32);
                 border-radius: 15px;
                 box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                border: 1px solid rgba(255, 102, 179, 0.2);
+                border: 1px solid rgba(255, 102, 179, 0.05);
                 color: white;
+                text-align: center;
             }
             .age-header {
                 display: flex;
                 align-items: center;
                 gap: 15px;
-                margin-bottom: 1.5rem;
+                justify-content: center;
+                margin-bottom: 1rem;
             }
             .age-icon {
-                font-size: 2.5rem;
-                color: #ff66b3;
+                font-size: 3rem;
+                color: #ff5722;
             }
             .age-title {
                 font-size: 1.8rem;
                 font-weight: 700;
                 margin: 0;
-                color: #ff66b3;
+                color: #fff;
+            }
+            .age-photo {
+                width: 140px;
+                height: 140px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 3px solid rgba(255,255,255,0.12);
+                display: block;
+                margin: 0.5rem auto 1rem auto;
+            }
+            .age-text {
+                color: #e8f5e9;
+            }
+            .entry-btn {
+                background: linear-gradient(45deg, #ff5722, #ff1493);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 30px;
+                text-decoration: none;
+                font-weight: bold;
+                border: none;
             }
         </style>
         """, unsafe_allow_html=True)
 
         with st.container():
-            st.markdown("""
+            st.markdown(f"""
             <div class="age-verification">
                 <div class="age-header">
                     <div class="age-icon">🔞</div>
                     <h1 class="age-title">Verificação de Idade</h1>
                 </div>
+                <img src="{Config.IMG_PROFILE}" alt="perfil" class="age-photo" />
                 <div class="age-content">
-                    <p>Este site contém material explícito destinado exclusivamente a adultos maiores de 18 anos.</p>
-                    <p>Ao acessar este conteúdo, você declara estar em conformidade com todas as leis locais aplicáveis.</p>
+                    <p class="age-text">Este site contém material explícito destinado exclusivamente a adultos maiores de 18 anos.</p>
+                    <p class="age-text">Ao acessar este conteúdo, você declara estar em conformidade com todas as leis locais aplicáveis.</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            if st.button("Confirmo que sou maior de 18 anos", 
+            # Added pepper icon to the entry button label
+            if st.button("🌶️ Confirmo que sou maior de 18 anos", 
                         key="age_checkbox",
                         use_container_width=True,
                         type="primary"):
@@ -637,8 +697,8 @@ class UiService:
             st.markdown("""
             <style>
                 [data-testid="stSidebar"] {
-                    background: linear-gradient(180deg, #1e0033 0%, #3c0066 100%) !important;
-                    border-right: 1px solid #ff66b3 !important;
+                    background: linear-gradient(180deg, #0b3d02 0%, #145214 100%) !important;
+                    border-right: 1px solid rgba(255,255,255,0.06) !important;
                 }
                 .sidebar-logo-container {
                     margin: -25px -25px 0px -25px;
@@ -656,18 +716,10 @@ class UiService:
                 }
                 .sidebar-header img {
                     border-radius: 50%; 
-                    border: 2px solid #ff66b3;
+                    border: 2px solid #4caf50;
                     width: 80px;
                     height: 80px;
                     object-fit: cover;
-                }
-                .vip-badge {
-                    background: linear-gradient(45deg, #ff1493, #9400d3);
-                    padding: 15px;
-                    border-radius: 8px;
-                    color: white;
-                    text-align: center;
-                    margin: 10px 0;
                 }
                 .menu-item {
                     transition: all 0.3s;
@@ -675,7 +727,7 @@ class UiService:
                     border-radius: 5px;
                 }
                 .menu-item:hover {
-                    background: rgba(255, 102, 179, 0.2);
+                    background: rgba(255, 255, 255, 0.03);
                 }
                 .sidebar-logo {
                     width: 280px;
@@ -696,24 +748,36 @@ class UiService:
                     position: relative;
                     z-index: 1;
                 }
+                .social-btn {
+                    display: inline-block;
+                    width: 100%;
+                    padding: 10px;
+                    margin: 6px 0;
+                    text-align: center;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    color: white;
+                    background: linear-gradient(45deg,#1de9b6,#00c853);
+                }
             </style>
             """, unsafe_allow_html=True)
             
             st.markdown(f"""
             <div class="sidebar-logo-container">
-                <img src="{Config.LOGO_URL}" class="sidebar-logo" alt="Golden Pepper Logo">
+                <img src="{Config.LOGO_URL}" class="sidebar-logo" alt="Logo">
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("""
+            st.markdown(f"""
             <div class="sidebar-header">
-                <img src="{profile_img}" alt="Paloma">
-                <h3 style="color: #ff66b3; margin-top: 10px;">Paloma Premium</h3>
+                <img src="{Config.IMG_PROFILE}" alt="Mylle">
+                <h3 style="color: #ffffff; margin-top: 10px;">Mylle Alves</h3>
             </div>
-            """.format(profile_img=Config.IMG_PROFILE), unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("### Menu Exclusivo")
+            # Menu title color changed to white
+            st.markdown('<h3 style="color: white; margin-bottom: 8px;">Menu Exclusivo</h3>', unsafe_allow_html=True)
             
             menu_options = {
                 "Início": "home",
@@ -731,38 +795,19 @@ class UiService:
                         st.rerun()
             
             st.markdown("---")
-            st.markdown("### Sua Conta")
+            # Removed "Sua Conta" and VIP banners/links as requested (no VIP upsell in sidebar)
             
-            st.markdown("""
-            <div style="
-                background: rgba(255, 20, 147, 0.1);
-                padding: 10px;
-                border-radius: 8px;
-                text-align: center;
-            ">
-                <p style="margin:0;">Acesse conteúdo exclusivo</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.markdown("### Upgrade VIP")
-            st.markdown("""
-            <div class="vip-badge">
-                <p style="margin: 0 0 10px; font-weight: bold;">Acesso completo por apenas</p>
-                <p style="margin: 0; font-size: 1.5em; font-weight: bold;">R$ 29,90/mês</p>
-                <p style="margin: 10px 0 0; font-size: 0.8em;">Cancele quando quiser</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("Tornar-se VIP", use_container_width=True, type="primary"):
-                st.session_state.current_page = "offers"
-                save_persistent_data()
-                st.rerun()
+            # Social buttons (Instagram, Facebook, Telegram, TikTok)
+            st.markdown('<div style="margin-top: 8px;"><strong style="color:#fff;">Redes Sociais</strong></div>', unsafe_allow_html=True)
+            for name, link in Config.SOCIALS.items():
+                st.markdown(f"""
+                <a href="{link}" target="_blank" rel="noopener noreferrer" class="social-btn">{name}</a>
+                """, unsafe_allow_html=True)
             
             st.markdown("---")
             st.markdown("""
-            <div style="text-align: center; font-size: 0.7em; color: #888;">
-                <p>© 2024 Paloma Premium</p>
+            <div style="text-align: center; font-size: 0.7em; color: #bdbdbd;">
+                <p>© 2024 Mylle Alves</p>
                 <p>Conteúdo para maiores de 18 anos</p>
             </div>
             """, unsafe_allow_html=True)
@@ -771,7 +816,7 @@ class UiService:
     def show_gallery_page(conn):
         st.markdown("""
         <div style="
-            background: rgba(255, 20, 147, 0.1);
+            background: rgba(0, 0, 0, 0.06);
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
@@ -804,17 +849,11 @@ class UiService:
         st.markdown("""
         <div style="text-align: center;">
             <h4>Desbloqueie acesso completo</h4>
-            <p>Assine o plano VIP para ver todos os conteúdos</p>
+            <p>Assine o plano ideal para você</p>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("Tornar-se VIP", 
-                    key="vip_button_gallery", 
-                    use_container_width=True,
-                    type="primary"):
-            st.session_state.current_page = "offers"
-            st.rerun()
-        
+        # Removed VIP dedicated button as requested
         if st.button("Voltar ao chat", key="back_from_gallery"):
             st.session_state.current_page = "chat"
             save_persistent_data()
@@ -844,26 +883,20 @@ class UiService:
                 st.session_state.current_page = "offers"
                 save_persistent_data()
                 st.rerun()
-        with cols[3]:
-            if st.button("VIP", key="shortcut_vip",
-                       help="Acessar área VIP",
-                       use_container_width=True):
-                st.session_state.current_page = "vip"
-                save_persistent_data()
-                st.rerun()
+        # Removed VIP shortcut per request (no VIP in menu)
 
         st.markdown("""
         <style>
             div[data-testid="stHorizontalBlock"] > div > div > button {
                 color: white !important;
-                border: 1px solid #ff66b3 !important;
-                background: rgba(255, 102, 179, 0.15) !important;
+                border: 1px solid #1de9b6 !important;
+                background: rgba(29, 233, 182, 0.12) !important;
                 transition: all 0.3s !important;
                 font-size: 0.8rem !important;
             }
             div[data-testid="stHorizontalBlock"] > div > div > button:hover {
                 transform: translateY(-2px) !important;
-                box-shadow: 0 2px 8px rgba(255, 102, 179, 0.3) !important;
+                box-shadow: 0 2px 8px rgba(29, 233, 182, 0.2) !important;
             }
             @media (max-width: 400px) {
                 div[data-testid="stHorizontalBlock"] > div > div > button {
@@ -876,25 +909,50 @@ class UiService:
 
     @staticmethod
     def enhanced_chat_ui(conn):
+        # WhatsApp-like green theme + spicy accents
         st.markdown("""
         <style>
             .chat-header {
-                background: linear-gradient(90deg, #ff66b3, #ff1493);
+                background: linear-gradient(90deg, #075e54, #128c7e);
                 color: white;
-                padding: 15px;
+                padding: 12px;
                 border-radius: 10px;
-                margin-bottom: 20px;
-                text-align: center;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                margin-bottom: 12px;
+                text-align: left;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.06);
             }
             .stAudio {
                 border-radius: 20px !important;
-                background: rgba(255, 102, 179, 0.1) !important;
+                background: rgba(0, 0, 0, 0.03) !important;
                 padding: 10px !important;
                 margin: 10px 0 !important;
             }
-            audio::-webkit-media-controls-panel {
-                background: linear-gradient(45deg, #ff66b3, #ff1493) !important;
+            .user-bubble {
+                background: #dcf8c6;
+                color: #000;
+                padding: 10px;
+                border-radius: 18px 18px 4px 18px;
+                display: inline-block;
+                max-width: 80%;
+            }
+            .assistant-bubble {
+                background: #ffffff;
+                color: #000;
+                padding: 10px;
+                border-radius: 18px 18px 18px 4px;
+                display: inline-block;
+                max-width: 80%;
+                box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            }
+            .chat-footer {
+                margin-top: 10px;
+                color: #bdbdbd;
+                text-align: center;
+            }
+            .sidebar-stats {
+                background: rgba(0,0,0,0.03);
+                padding: 8px;
+                border-radius: 8px;
             }
         </style>
         """, unsafe_allow_html=True)
@@ -903,20 +961,14 @@ class UiService:
         
         st.markdown(f"""
         <div class="chat-header">
-            <h2 style="margin:0; font-size:1.5em; display:inline-block;">Chat Privado com Paloma</h2>
+            <h2 style="margin:0; font-size:1.2em; display:inline-block;">Chat Privado com Mylle</h2>
         </div>
         """, unsafe_allow_html=True)
         
         st.sidebar.markdown(f"""
-        <div style="
-            background: rgba(255, 20, 147, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            text-align: center;
-        ">
-            <p style="margin:0; font-size:0.9em;">
-                Mensagens hoje: <strong>{st.session_state.request_count}/{Config.MAX_REQUESTS_PER_SESSION}</strong>
+        <div class="sidebar-stats" style="margin-bottom:12px;">
+            <p style="margin:0; font-size:0.95em; color:#fff;">
+                Mensagens hoje: <strong style="color:#c8e6c9;">{st.session_state.request_count}/{Config.MAX_REQUESTS_PER_SESSION}</strong>
             </p>
             <progress value="{st.session_state.request_count}" max="{Config.MAX_REQUESTS_PER_SESSION}" style="width:100%; height:6px;"></progress>
         </div>
@@ -926,13 +978,7 @@ class UiService:
         save_persistent_data()
         
         st.markdown("""
-        <div style="
-            text-align: center;
-            margin-top: 20px;
-            padding: 10px;
-            font-size: 0.8em;
-            color: #888;
-        ">
+        <div class="chat-footer">
             <p>Conversa privada • Suas mensagens são confidenciais</p>
         </div>
         """, unsafe_allow_html=True)
@@ -946,17 +992,17 @@ class NewPages:
         st.markdown("""
         <style>
             .hero-banner {
-                background: linear-gradient(135deg, #1e0033, #3c0066);
-                padding: 80px 20px;
+                background: linear-gradient(135deg, #075e54, #128c7e);
+                padding: 60px 20px;
                 text-align: center;
-                border-radius: 15px;
+                border-radius: 12px;
                 color: white;
-                margin-bottom: 30px;
-                border: 2px solid #ff66b3;
+                margin-bottom: 20px;
+                border: 1px solid rgba(255,255,255,0.04);
             }
             .preview-img {
-                border-radius: 10px;
-                filter: blur(3px) brightness(0.7);
+                border-radius: 8px;
+                filter: blur(2px) brightness(0.85);
                 transition: all 0.3s;
             }
             .preview-img:hover {
@@ -967,13 +1013,13 @@ class NewPages:
 
         st.markdown("""
         <div class="hero-banner">
-            <h1 style="color: #ff66b3;">Paloma Premium</h1>
+            <h1 style="color: #fff;">Mylle Premium</h1>
             <p>Conteúdo exclusivo que você não encontra em nenhum outro lugar...</p>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 16px;">
                 <a href="#vip" style="
-                    background: #ff66b3;
-                    color: white;
-                    padding: 10px 25px;
+                    background: #1de9b6;
+                    color: #004d40;
+                    padding: 10px 20px;
                     border-radius: 30px;
                     text-decoration: none;
                     font-weight: bold;
@@ -988,7 +1034,7 @@ class NewPages:
         for col, img in zip(cols, Config.IMG_HOME_PREVIEWS):
             with col:
                 st.image(img, use_container_width=True, caption="Conteúdo bloqueado", output_format="auto")
-                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -15px;">VIP Only</div>""", unsafe_allow_html=True)
+                st.markdown("""<div style="text-align:center; color: #ff66b3; margin-top: -8px;">VIP Only</div>""", unsafe_allow_html=True)
 
         st.markdown("---")
         
@@ -1006,282 +1052,30 @@ class NewPages:
 
     @staticmethod
     def show_offers_page():
+        # Simplified offers page — removed direct checkout links and heavy VIP upsell
         st.markdown("""
         <style>
-            .package-container {
-                display: flex;
-                justify-content: space-between;
-                margin: 30px 0;
-                gap: 20px;
-            }
-            .package-box {
-                flex: 1;
-                background: rgba(30, 0, 51, 0.3);
-                border-radius: 15px;
-                padding: 20px;
-                border: 1px solid;
-                transition: all 0.3s;
-                min-height: 400px;
-                position: relative;
-                overflow: hidden;
-            }
-            .package-box:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 20px rgba(255, 102, 179, 0.3);
-            }
-            .package-start {
-                border-color: #ff66b3;
-            }
-            .package-premium {
-                border-color: #9400d3;
-            }
-            .package-extreme {
-                border-color: #ff0066;
-            }
-            .package-header {
-                text-align: center;
-                padding-bottom: 15px;
-                margin-bottom: 15px;
-                border-bottom: 1px solid rgba(255, 102, 179, 0.3);
-            }
-            .package-price {
-                font-size: 1.8em;
-                font-weight: bold;
-                margin: 10px 0;
-            }
-            .package-benefits {
-                list-style-type: none;
-                padding: 0;
-            }
-            .package-benefits li {
-                padding: 8px 0;
-                position: relative;
-                padding-left: 25px;
-            }
-            .package-benefits li:before {
-                content: "✓";
-                color: #ff66b3;
-                position: absolute;
-                left: 0;
-                font-weight: bold;
-            }
-            .package-badge {
-                position: absolute;
-                top: 15px;
-                right: -30px;
-                background: #ff0066;
-                color: white;
-                padding: 5px 30px;
-                transform: rotate(45deg);
-                font-size: 0.8em;
-                font-weight: bold;
-                width: 100px;
-                text-align: center;
-            }
-            .countdown-container {
-                background: linear-gradient(45deg, #ff0066, #ff66b3);
-                color: white;
-                padding: 15px;
-                border-radius: 10px;
-                margin: 40px 0;
-                box-shadow: 0 4px 15px rgba(255, 0, 102, 0.3);
-                text-align: center;
-            }
             .offer-card {
-                border: 1px solid #ff66b3;
-                border-radius: 15px;
-                padding: 20px;
-                margin-bottom: 20px;
-                background: rgba(30, 0, 51, 0.3);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 12px;
+                padding: 18px;
+                margin-bottom: 14px;
+                background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
             }
-            .offer-highlight {
-                background: linear-gradient(45deg, #ff0066, #ff66b3);
-                color: white;
-                padding: 5px 10px;
-                border-radius: 5px;
-                font-weight: bold;
         </style>
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h2 style="color: #ff66b3; border-bottom: 2px solid #ff66b3; display: inline-block; padding-bottom: 5px;">PACOTES EXCLUSIVOS</h2>
-            <p style="color: #aaa; margin-top: 10px;">Escolha o que melhor combina com seus desejos...</p>
+        <div style="text-align: center; margin-bottom: 18px;">
+            <h2 style="color: #fff;">Ofertas Especiais</h2>
+            <p style="color:#cfd8dc;">Confira algumas opções — sem links diretos de pagamento nesta versão.</p>
         </div>
         """, unsafe_allow_html=True)
-
-        st.markdown('<div class="package-container">', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="package-box package-start">
-            <div class="package-header">
-                <h3 style="color: #ff66b3;">START</h3>
-                <div class="package-price" style="color: #ff66b3;">R$ 49,90</div>
-                <small>para iniciantes</small>
-            </div>
-            <ul class="package-benefits">
-                <li>10 fotos Inéditas</li>
-                <li>3 vídeo Intimos</li>
-                <li>Fotos Exclusivas</li>
-                <li>Videos Intimos </li>
-                <li>Fotos Buceta</li>
-            </ul>
-            <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_start}" target="_blank" rel="noopener noreferrer" style="
-                    display: block;
-                    background: linear-gradient(45deg, #ff66b3, #ff1493);
-                    color: white;
-                    text-align: center;
-                    padding: 10px;
-                    border-radius: 8px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    transition: all 0.3s;
-                " onmouseover="this.style.transform='scale(1.05)'" 
-                onmouseout="this.style.transform='scale(1)'"
-                onclick="this.innerHTML='REDIRECIONANDO ⌛'; this.style.opacity='0.7'">
-                    QUERO ESTE PACOTE ➔
-                </a>
-            </div>
-        </div>
-        """.format(checkout_start=Config.CHECKOUT_START), unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="package-box package-premium">
-            <div class="package-badge">POPULAR</div>
-            <div class="package-header">
-                <h3 style="color: #9400d3;">PREMIUM</h3>
-                <div class="package-price" style="color: #9400d3;">R$ 99,90</div>
-                <small>experiência completa</small>
-            </div>
-            <ul class="package-benefits">
-                <li>20 fotos exclusivas</li>
-                <li>5 vídeos premium</li>
-                <li>Fotos Peito</li>
-                <li>Fotos Bunda</li>
-                <li>Fotos Buceta</li>
-                <li>Fotos Exclusivas e Videos Exclusivos</li>
-                <li>Videos Masturbando</li>
-            </ul>
-            <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_premium}" target="_blank" rel="noopener noreferrer" style="
-                    display: block;
-                    background: linear-gradient(45deg, #9400d3, #ff1493);
-                    color: white;
-                    text-align: center;
-                    padding: 10px;
-                    border-radius: 8px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    transition: all 0.3s;
-                " onmouseover="this.style.transform='scale(1.05)'" 
-                onmouseout="this.style.transform='scale(1)'"
-                onclick="this.innerHTML='REDIRECIONANDO ⌛'; this.style.opacity='0.7'">
-                    QUERO ESTE PACOTE ➔
-                </a>
-            </div>
-        </div>
-        """.format(checkout_premium=Config.CHECKOUT_PREMIUM), unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="package-box package-extreme">
-            <div class="package-header">
-                <h3 style="color: #ff0066;">EXTREME</h3>
-                <div class="package-price" style="color: #ff0066;">R$ 199,90</div>
-                <small>para verdadeiros fãs</small>
-            </div>
-            <ul class="package-benefits">
-                <li>30 fotos ultra-exclusivas</li>
-                <li>10 Videos Exclusivos</li>
-                <li>Fotos Peito</li>
-                <li>Fotos Bunda</li>
-                <li>Fotos Buceta</li>
-                <li>Fotos Exclusivas</li>
-                <li>Videos Masturbando</li>
-                <li>Videos Transando</li>
-                <li>Acesso a conteúdos futuros</li>
-            </ul>
-            <div style="position: absolute; bottom: 20px; width: calc(100% - 40px);">
-                <a href="{checkout_extreme}" target="_blank" rel="noopener noreferrer" style="
-                    display: block;
-                    background: linear-gradient(45deg, #ff0066, #9400d3);
-                    color: white;
-                    text-align: center;
-                    padding: 10px;
-                    border-radius: 8px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    transition: all 0.3s;
-                " onmouseover="this.style.transform='scale(1.05)'" 
-                onmouseout="this.style.transform='scale(1)'"
-                onclick="this.innerHTML='REDIRECIONANDO ⌛'; this.style.opacity='0.7'">
-                    QUERO ESTE PACOTE ➔
-                </a>
-            </div>
-        </div>
-        """.format(checkout_extreme=Config.CHECKOUT_EXTREME), unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="countdown-container">
-            <h3 style="margin:0;">OFERTA RELÂMPAGO</h3>
-            <div id="countdown" style="font-size: 1.5em; font-weight: bold;">23:59:59</div>
-            <p style="margin:5px 0 0;">Termina em breve!</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.components.v1.html("""
-        <script>
-        function updateCountdown() {
-            const countdownElement = parent.document.getElementById('countdown');
-            if (!countdownElement) return;
-            
-            let time = countdownElement.textContent.split(':');
-            let hours = parseInt(time[0]);
-            let minutes = parseInt(time[1]);
-            let seconds = parseInt(time[2]);
-            
-            seconds--;
-            if (seconds < 0) { seconds = 59; minutes--; }
-            if (minutes < 0) { minutes = 59; hours--; }
-            if (hours < 0) { hours = 23; }
-            
-            countdownElement.textContent = 
-                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            setTimeout(updateCountdown, 1000);
-        }
-        
-        setTimeout(updateCountdown, 1000);
-        </script>
-        """, height=0)
 
         plans = [
-            {
-                "name": "1 Mês",
-                "price": "R$ 29,90",
-                "original": "R$ 49,90",
-                "benefits": ["Acesso total", "Conteúdo novo diário", "Chat privado"],
-                "tag": "COMUM",
-                "link": Config.CHECKOUT_VIP_1MES + "?plan=1mes"
-            },
-            {
-                "name": "3 Meses",
-                "price": "R$ 69,90",
-                "original": "R$ 149,70",
-                "benefits": ["25% de desconto", "Bônus: 1 vídeo exclusivo", "Prioridade no chat"],
-                "tag": "MAIS POPULAR",
-                "link": Config.CHECKOUT_VIP_3MESES + "?plan=3meses"
-            },
-            {
-                "name": "1 Ano",
-                "price": "R$ 199,90",
-                "original": "R$ 598,80",
-                "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"],
-                "tag": "MELHOR CUSTO-BENEFÍCIO",
-                "link": Config.CHECKOUT_VIP_1ANO + "?plan=1ano"
-            }
+            {"name": "1 Mês", "price": "R$ 29,90", "benefits": ["Acesso total", "Conteúdo novo diário", "Chat privado"], "tag": "COMUM"},
+            {"name": "3 Meses", "price": "R$ 69,90", "benefits": ["25% de desconto", "Bônus: 1 vídeo exclusivo", "Prioridade no chat"], "tag": "MAIS POPULAR"},
+            {"name": "1 Ano", "price": "R$ 199,90", "benefits": ["66% de desconto", "Presente surpresa mensal", "Acesso a conteúdos raros"], "tag": "MELHOR CUSTO-BENEFÍCIO"}
         ]
 
         for plan in plans:
@@ -1289,28 +1083,19 @@ class NewPages:
                 st.markdown(f"""
                 <div class="offer-card">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>{plan['name']}</h3>
-                        {f'<span class="offer-highlight">{plan["tag"]}</span>' if plan["tag"] else ''}
+                        <h3 style="margin:0;">{plan['name']}</h3>
+                        {f'<span style="background:#1de9b6;color:#004d40;padding:4px 8px;border-radius:6px;font-weight:bold;">{plan["tag"]}</span>' if plan["tag"] else ''}
                     </div>
                     <div style="margin: 10px 0;">
-                        <span style="font-size: 1.8em; color: #ff66b3; font-weight: bold;">{plan['price']}</span>
-                        <span style="text-decoration: line-through; color: #888; margin-left: 10px;">{plan['original']}</span>
+                        <span style="font-size: 1.4em; color: #1de9b6; font-weight: bold;">{plan['price']}</span>
                     </div>
                     <ul style="padding-left: 20px;">
-                        {''.join([f'<li style="margin-bottom: 5px;">{benefit}</li>' for benefit in plan['benefits']])}
+                        {''.join([f'<li style="margin-bottom: 4px;">{benefit}</li>' for benefit in plan['benefits']])}
                     </ul>
-                    <div style="text-align: center; margin-top: 15px;">
-                        <a href="{plan['link']}" style="
-                            background: linear-gradient(45deg, #ff1493, #9400d3);
-                            color: white;
-                            padding: 10px 20px;
-                            border-radius: 30px;
-                            text-decoration: none;
-                            display: inline-block;
-                            font-weight: bold;
-                        ">
-                            Assinar {plan['name']}
-                        </a>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <button style="background:linear-gradient(45deg,#1de9b6,#00c853); color:#004d40; padding:8px 14px; border-radius:20px; border:none; font-weight:bold;">
+                            Quero saber mais
+                        </button>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1351,7 +1136,9 @@ class ChatService:
             'audio_sent': False,
             'current_page': 'home',
             'show_vip_offer': False,
-            'last_cta_time': 0  # Novo campo adicionado
+            'last_cta_time': 0,
+            'greeted': False,  # whether the assistant already sent the opening message
+            'first_response_handled': False  # whether the special first user reply flow ran
         }
         
         for key, default in defaults.items():
@@ -1363,7 +1150,7 @@ class ChatService:
         formatted = []
         
         for msg in messages[-max_messages:]:
-            role = "Cliente" if msg["role"] == "user" else "Paloma"
+            role = "Cliente" if msg["role"] == "user" else "Mylle"
             content = msg["content"]
             if content == "[ÁUDIO]":
                 content = "[Enviou um áudio sensual]"
@@ -1385,12 +1172,7 @@ class ChatService:
                 if msg["role"] == "user":
                     with st.chat_message("user", avatar="🧑"):
                         st.markdown(f"""
-                        <div style="
-                            background: rgba(0, 0, 0, 0.1);
-                            padding: 12px;
-                            border-radius: 18px 18px 0 18px;
-                            margin: 5px 0;
-                        ">
+                        <div class="user-bubble">
                             {msg["content"]}
                         </div>
                         """, unsafe_allow_html=True)
@@ -1403,13 +1185,7 @@ class ChatService:
                         if isinstance(content_data, dict):
                             with st.chat_message("assistant", avatar="💋"):
                                 st.markdown(f"""
-                                <div style="
-                                    background: linear-gradient(45deg, #ff66b3, #ff1493);
-                                    color: white;
-                                    padding: 12px;
-                                    border-radius: 18px 18px 18px 0;
-                                    margin: 5px 0;
-                                ">
+                                <div class="assistant-bubble">
                                     {content_data.get("text", "")}
                                 </div>
                                 """, unsafe_allow_html=True)
@@ -1418,7 +1194,7 @@ class ChatService:
                                 if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
                                     if st.button(
                                         content_data.get("cta", {}).get("label", "Ver Ofertas"),
-                                        key=f"cta_button_{hash(msg['content'])}",  # Chave única baseada no conteúdo
+                                        key=f"cta_button_{hash(msg['content'])}",
                                         use_container_width=True
                                     ):
                                         st.session_state.current_page = content_data.get("cta", {}).get("target", "offers")
@@ -1427,26 +1203,14 @@ class ChatService:
                         else:
                             with st.chat_message("assistant", avatar="💋"):
                                 st.markdown(f"""
-                                <div style="
-                                    background: linear-gradient(45deg, #ff66b3, #ff1493);
-                                    color: white;
-                                    padding: 12px;
-                                    border-radius: 18px 18px 18px 0;
-                                    margin: 5px 0;
-                                ">
+                                <div class="assistant-bubble">
                                     {msg["content"]}
                                 </div>
                                 """, unsafe_allow_html=True)
                     except json.JSONDecodeError:
                         with st.chat_message("assistant", avatar="💋"):
                             st.markdown(f"""
-                            <div style="
-                                background: linear-gradient(45deg, #ff66b3, #ff1493);
-                                color: white;
-                                padding: 12px;
-                                border-radius: 18px 18px 18px 0;
-                                margin: 5px 0;
-                            ">
+                            <div class="assistant-bubble">
                                 {msg["content"]}
                             </div>
                             """, unsafe_allow_html=True)
@@ -1458,27 +1222,34 @@ class ChatService:
 
     @staticmethod
     def process_user_input(conn):
+        # Display history first
         ChatService.display_chat_history()
         
-        if not st.session_state.get("audio_sent") and st.session_state.chat_started:
+        # If chat has just started and assistant hasn't greeted, simulate typing after a 3s delay then send first sexy prompt
+        if st.session_state.chat_started and not st.session_state.greeted:
             status_container = st.empty()
-            UiService.show_audio_recording_effect(status_container)
-            
+            # Wait 3 seconds then show a typing indicator for 3 seconds
+            time.sleep(0.5)  # slight pause before typing animation starts
+            UiService.show_custom_typing(status_container, duration=3.0)
+            first_message = "oi gostoso 😈 me conta seu nome e onde você mora?"
+            # Append assistant greeting
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": "[ÁUDIO]"
+                "content": json.dumps({"text": first_message, "cta": {"show": False}})
             })
             DatabaseService.save_message(
                 conn,
                 get_user_id(),
                 st.session_state.session_id,
                 "assistant",
-                "[ÁUDIO]"
+                json.dumps({"text": first_message, "cta": {"show": False}})
             )
-            st.session_state.audio_sent = True
+            st.session_state.greeted = True
             save_persistent_data()
             st.rerun()
+            return
         
+        # If previously the assistant sent the opening prompt, now show input for user
         user_input = st.chat_input("Escreva sua mensagem aqui", key="chat_input")
         
         if user_input:
@@ -1516,17 +1287,85 @@ class ChatService:
             
             with st.chat_message("user", avatar="🧑"):
                 st.markdown(f"""
-                <div style="
-                    background: rgba(0, 0, 0, 0.1);
-                    padding: 12px;
-                    border-radius: 18px 18px 0 18px;
-                    margin: 5px 0;
-                ">
+                <div class="user-bubble">
                     {cleaned_input}
                 </div>
                 """, unsafe_allow_html=True)
             
+            # Special flow: after the user answers the initial greeting, send a warm/naughty intro and mention promotions
+            if st.session_state.greeted and not st.session_state.first_response_handled:
+                # Prepare personalized (but gentle) intro messages
+                # Try to extract a first name (naive)
+                possible_name = None
+                try:
+                    name_candidate = cleaned_input.strip().split()[0]
+                    if len(name_candidate) > 1 and name_candidate.isalpha():
+                        possible_name = name_candidate.capitalize()
+                except:
+                    possible_name = None
+                
+                name_display = possible_name if possible_name else "gato"
+                
+                intro_msg = f"ai {name_display}.. que delícia saber de você ❤️ eu sou a Mylle, crio conteúdo bem ousado e íntimo"
+                promo_msg = "essa semana tá tudo em promoção pros meus seguidores mais chegadinhos, mas eu conto tudo com carinho e do jeito mais safado pra você 😘"
+                
+                # Show typing effect then append messages
+                status_container = st.empty()
+                UiService.show_custom_typing(status_container, duration=2.0)
+                
+                with st.chat_message("assistant", avatar="💋"):
+                    st.markdown(f"""
+                    <div class="assistant-bubble">
+                        {intro_msg}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": json.dumps({"text": intro_msg, "cta": {"show": False}})
+                })
+                DatabaseService.save_message(
+                    conn,
+                    get_user_id(),
+                    st.session_state.session_id,
+                    "assistant",
+                    json.dumps({"text": intro_msg, "cta": {"show": False}})
+                )
+                
+                # Another short typing and promo message
+                status_container = st.empty()
+                UiService.show_custom_typing(status_container, duration=2.0)
+                
+                with st.chat_message("assistant", avatar="💋"):
+                    st.markdown(f"""
+                    <div class="assistant-bubble">
+                        {promo_msg}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": json.dumps({"text": promo_msg, "cta": {"show": False}})
+                })
+                DatabaseService.save_message(
+                    conn,
+                    get_user_id(),
+                    st.session_state.session_id,
+                    "assistant",
+                    json.dumps({"text": promo_msg, "cta": {"show": False}})
+                )
+                
+                st.session_state.first_response_handled = True
+                save_persistent_data()
+                st.rerun()
+                return  # don't call external API for this special flow
+            
+            # Normal flow: call API for responses on subsequent messages
             with st.chat_message("assistant", avatar="💋"):
+                # show typing
+                status_container = st.empty()
+                UiService.show_custom_typing(status_container, duration=1.2)
+                
                 resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
                 
                 if isinstance(resposta, str):
@@ -1535,13 +1374,7 @@ class ChatService:
                     resposta = {"text": str(resposta), "cta": {"show": False}}
                 
                 st.markdown(f"""
-                <div style="
-                    background: linear-gradient(45deg, #ff66b3, #ff1493);
-                    color: white;
-                    padding: 12px;
-                    border-radius: 18px 18px 18px 0;
-                    margin: 5px 0;
-                ">
+                <div class="assistant-bubble">
                     {resposta["text"]}
                 </div>
                 """, unsafe_allow_html=True)
@@ -1580,25 +1413,26 @@ class ChatService:
 # APLICAÇÃO PRINCIPAL
 # ======================
 def main():
+    # Updated theme CSS to feel spicier + WhatsApp-like
     st.markdown("""
     <style>
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #1e0033 0%, #3c0066 100%) !important;
-            border-right: 1px solid #ff66b3 !important;
+            background: linear-gradient(180deg, #0b3d02 0%, #145214 100%) !important;
+            border-right: 1px solid rgba(255,255,255,0.04) !important;
         }
         .stButton button {
-            background: rgba(255, 20, 147, 0.2) !important;
-            color: white !important;
-            border: 1px solid #ff66b3 !important;
-            transition: all 0.3s !important;
+            background: linear-gradient(45deg,#1de9b6,#00c853) !important;
+            color: #004d40 !important;
+            border: none !important;
+            transition: all 0.2s !important;
         }
         .stButton button:hover {
-            background: rgba(255, 20, 147, 0.4) !important;
             transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
         }
         [data-testid="stChatInput"] {
-            background: rgba(255, 102, 179, 0.1) !important;
-            border: 1px solid #ff66b3 !important;
+            background: #fff !important;
+            border: 1px solid rgba(0,0,0,0.06) !important;
         }
         div.stButton > button:first-child {
             background: linear-gradient(45deg, #ff1493, #9400d3) !important;
@@ -1608,11 +1442,11 @@ def main():
             padding: 10px 24px !important;
             font-weight: bold !important;
             transition: all 0.3s !important;
-            box-shadow: 0 4px 8px rgba(255, 20, 147, 0.3) !important;
+            box-shadow: 0 4px 8px rgba(255, 20, 147, 0.12) !important;
         }
         div.stButton > button:first-child:hover {
             transform: translateY(-2px) !important;
-            box-shadow: 0 6px 12px rgba(255, 20, 147, 0.4) !important;
+            box-shadow: 0 6px 12px rgba(255, 20, 147, 0.18) !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -1640,14 +1474,14 @@ def main():
         col1, col2, col3 = st.columns([1,3,1])
         with col2:
             st.markdown("""
-            <div style="text-align: center; margin: 50px 0;">
-                <img src="{profile_img}" width="120" style="border-radius: 50%; border: 3px solid #ff66b3;">
-                <h2 style="color: #ff66b3; margin-top: 15px;">Paloma</h2>
-                <p style="font-size: 1.1em;">Estou pronta para você, amor...</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <img src="{profile_img}" width="120" style="border-radius: 50%; border: 3px solid #1de9b6;">
+                <h2 style="color: #1de9b6; margin-top: 15px;">Mylle Alves</h2>
+                <p style="font-size: 1.05em;">Tô pronta pra você, amor...</p>
             </div>
             """.format(profile_img=Config.IMG_PROFILE), unsafe_allow_html=True)
             
-            if st.button("Iniciar Conversa", type="primary", use_container_width=True):
+            if st.button("Iniciar Conversa 🌶️", type="primary", use_container_width=True):
                 st.session_state.update({
                     'chat_started': True,
                     'current_page': 'chat',
@@ -1663,10 +1497,6 @@ def main():
         UiService.show_gallery_page(conn)
     elif st.session_state.current_page == "offers":
         NewPages.show_offers_page()
-    elif st.session_state.current_page == "vip":
-        st.session_state.show_vip_offer = True
-        save_persistent_data()
-        st.rerun()
     elif st.session_state.get("show_vip_offer", False):
         st.warning("Página VIP em desenvolvimento")
         if st.button("Voltar ao chat"):
