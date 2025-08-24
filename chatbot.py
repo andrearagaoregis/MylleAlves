@@ -699,11 +699,11 @@ class UiService:
                         use_container_width=True,
                         type="primary"):
                 # mark verified and go directly to profile (home) page
-                # IMPORTANT CHANGE: also mark connection_complete True so the app navigates directly
-                # to the profile/home page and DOES NOT show the initial call animation page.
+                # IMPORTANT CHANGE: set current_page to 'home' and set connection_complete True
+                # so the app goes directly to the profile/home page after verification.
                 st.session_state.age_verified = True
-                st.session_state.current_page = 'home'     # profile/home page
-                st.session_state.connection_complete = True  # skip call effect and go straight to profile
+                st.session_state.current_page = 'home'
+                st.session_state.connection_complete = True
                 st.session_state.chat_started = False
                 save_persistent_data()
                 st.rerun()
@@ -1145,310 +1145,6 @@ class NewPages:
             st.rerun()
 
 # ======================
-# SERVIÇOS DE CHAT
-# ======================
-class ChatService:
-    @staticmethod
-    def initialize_session(conn):
-        load_persistent_data()
-
-        if "session_id" not in st.session_state:
-            st.session_state.session_id = str(random.randint(100000, 999999))
-
-        if "messages" not in st.session_state:
-            st.session_state.messages = DatabaseService.load_messages(
-                conn,
-                get_user_id(),
-                st.session_state.session_id
-            )
-
-        if "request_count" not in st.session_state:
-            st.session_state.request_count = len([
-                m for m in st.session_state.messages
-                if m["role"] == "user"
-            ])
-
-        defaults = {
-            'age_verified': False,
-            'connection_complete': False,
-            'chat_started': False,
-            'audio_sent': False,
-            'current_page': 'home',
-            'show_vip_offer': False,
-            'last_cta_time': 0,
-            'greeted': False,  # whether the assistant already sent the opening message
-            'first_response_handled': False  # whether the special first user reply flow ran
-        }
-
-        for key, default in defaults.items():
-            if key not in st.session_state:
-                st.session_state[key] = default
-
-    @staticmethod
-    def format_conversation_history(messages, max_messages=10):
-        formatted = []
-
-        for msg in messages[-max_messages:]:
-            role = "Cliente" if msg["role"] == "user" else "Mylle"
-            content = msg["content"]
-            if content == "[ÁUDIO]":
-                content = "[Enviou um áudio sensual]"
-            elif content.startswith('{"text"'):
-                try:
-                    content = json.loads(content).get("text", content)
-                except:
-                    pass
-
-            formatted.append(f"{role}: {content}")
-
-        return "\n".join(formatted)
-
-    @staticmethod
-    def display_chat_history():
-        chat_container = st.container()
-        with chat_container:
-            for idx, msg in enumerate(st.session_state.messages[-12:]):
-                if msg["role"] == "user":
-                    with st.chat_message("user", avatar="🧑"):
-                        st.markdown(f"""
-                        <div class="user-bubble">
-                            {msg["content"]}
-                        </div>
-                        """, unsafe_allow_html=True)
-                elif msg["content"] == "[ÁUDIO]":
-                    with st.chat_message("assistant", avatar="💋"):
-                        st.markdown(UiService.get_chat_audio_player(), unsafe_allow_html=True)
-                else:
-                    try:
-                        content_data = json.loads(msg["content"])
-                        if isinstance(content_data, dict):
-                            with st.chat_message("assistant", avatar="💋"):
-                                st.markdown(f"""
-                                <div class="assistant-bubble">
-                                    {content_data.get("text", "")}
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                                # Mostrar botão apenas na última mensagem
-                                if content_data.get("cta", {}).get("show") and idx == len(st.session_state.messages[-12:]) - 1:
-                                    if st.button(
-                                        content_data.get("cta", {}).get("label", "Ver Ofertas"),
-                                        key=f"cta_button_{hash(msg['content'])}",
-                                        use_container_width=True
-                                    ):
-                                        st.session_state.current_page = content_data.get("cta", {}).get("target", "offers")
-                                        save_persistent_data()
-                                        st.rerun()
-                        else:
-                            with st.chat_message("assistant", avatar="💋"):
-                                st.markdown(f"""
-                                <div class="assistant-bubble">
-                                    {msg["content"]}
-                                </div>
-                                """, unsafe_allow_html=True)
-                    except json.JSONDecodeError:
-                        with st.chat_message("assistant", avatar="💋"):
-                            st.markdown(f"""
-                            <div class="assistant-bubble">
-                                {msg["content"]}
-                            </div>
-                            """, unsafe_allow_html=True)
-
-    @staticmethod
-    def validate_input(user_input):
-        cleaned_input = re.sub(r'<[^>]*>', '', user_input)
-        return cleaned_input[:500]
-
-    @staticmethod
-    def process_user_input(conn):
-        # Display history first
-        ChatService.display_chat_history()
-
-        # If chat has just started and assistant hasn't greeted, simulate typing after a 3s delay then send first sexy prompt
-        if st.session_state.chat_started and not st.session_state.greeted:
-            status_container = st.empty()
-            # Wait 3 seconds then show a typing indicator for 3 seconds
-            time.sleep(0.5)  # slight pause before typing animation starts
-            UiService.show_custom_typing(status_container, duration=3.0)
-            first_message = "oi gostoso 😈 me conta seu nome e onde você mora?"
-            # Append assistant greeting
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": json.dumps({"text": first_message, "cta": {"show": False}})
-            })
-            DatabaseService.save_message(
-                conn,
-                get_user_id(),
-                st.session_state.session_id,
-                "assistant",
-                json.dumps({"text": first_message, "cta": {"show": False}})
-            )
-            st.session_state.greeted = True
-            save_persistent_data()
-            st.rerun()
-            return
-
-        # If previously the assistant sent the opening prompt, now show input for user
-        user_input = st.chat_input("Escreva sua mensagem aqui", key="chat_input")
-
-        if user_input:
-            cleaned_input = ChatService.validate_input(user_input)
-
-            if st.session_state.request_count >= Config.MAX_REQUESTS_PER_SESSION:
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Vou ficar ocupada agora, me manda mensagem depois?"
-                })
-                DatabaseService.save_message(
-                    conn,
-                    get_user_id(),
-                    st.session_state.session_id,
-                    "assistant",
-                    "Estou ficando cansada, amor... Que tal continuarmos mais tarde?"
-                )
-                save_persistent_data()
-                st.rerun()
-                return
-
-            st.session_state.messages.append({
-                "role": "user",
-                "content": cleaned_input
-            })
-            DatabaseService.save_message(
-                conn,
-                get_user_id(),
-                st.session_state.session_id,
-                "user",
-                cleaned_input
-            )
-
-            st.session_state.request_count += 1
-
-            with st.chat_message("user", avatar="🧑"):
-                st.markdown(f"""
-                <div class="user-bubble">
-                    {cleaned_input}
-                </div>
-                """, unsafe_allow_html=True)
-
-            # Special flow: after the user answers the initial greeting, send a warm/naughty intro and mention promotions
-            if st.session_state.greeted and not st.session_state.first_response_handled:
-                # Prepare personalized (but gentle) intro messages
-                # Try to extract a first name (naive)
-                possible_name = None
-                try:
-                    name_candidate = cleaned_input.strip().split()[0]
-                    if len(name_candidate) > 1 and name_candidate.isalpha():
-                        possible_name = name_candidate.capitalize()
-                except:
-                    possible_name = None
-
-                name_display = possible_name if possible_name else "gato"
-
-                intro_msg = f"ai {name_display}.. que delícia saber de você ❤️ eu sou a Mylle, crio conteúdo bem ousado e íntimo"
-                promo_msg = "essa semana tá tudo em promoção pros meus seguidores mais chegadinhos, mas eu conto tudo com carinho e do jeito mais safado pra você 😘"
-
-                # Show typing effect then append messages
-                status_container = st.empty()
-                UiService.show_custom_typing(status_container, duration=2.0)
-
-                with st.chat_message("assistant", avatar="💋"):
-                    st.markdown(f"""
-                    <div class="assistant-bubble">
-                        {intro_msg}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": json.dumps({"text": intro_msg, "cta": {"show": False}})
-                })
-                DatabaseService.save_message(
-                    conn,
-                    get_user_id(),
-                    st.session_state.session_id,
-                    "assistant",
-                    json.dumps({"text": intro_msg, "cta": {"show": False}})
-                )
-
-                # Another short typing and promo message
-                status_container = st.empty()
-                UiService.show_custom_typing(status_container, duration=2.0)
-
-                with st.chat_message("assistant", avatar="💋"):
-                    st.markdown(f"""
-                    <div class="assistant-bubble">
-                        {promo_msg}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": json.dumps({"text": promo_msg, "cta": {"show": False}})
-                })
-                DatabaseService.save_message(
-                    conn,
-                    get_user_id(),
-                    st.session_state.session_id,
-                    "assistant",
-                    json.dumps({"text": promo_msg, "cta": {"show": False}})
-                )
-
-                st.session_state.first_response_handled = True
-                save_persistent_data()
-                st.rerun()
-                return  # don't call external API for this special flow
-
-            # Normal flow: call API for responses on subsequent messages
-            with st.chat_message("assistant", avatar="💋"):
-                # show typing
-                status_container = st.empty()
-                UiService.show_custom_typing(status_container, duration=1.2)
-
-                resposta = ApiService.ask_gemini(cleaned_input, st.session_state.session_id, conn)
-
-                if isinstance(resposta, str):
-                    resposta = {"text": resposta, "cta": {"show": False}}
-                elif "text" not in resposta:
-                    resposta = {"text": str(resposta), "cta": {"show": False}}
-
-                st.markdown(f"""
-                <div class="assistant-bubble">
-                    {resposta["text"]}
-                </div>
-                """, unsafe_allow_html=True)
-
-                if resposta.get("cta", {}).get("show"):
-                    if st.button(
-                        resposta["cta"].get("label", "Ver Ofertas"),
-                        key=f"chat_button_{time.time()}",
-                        use_container_width=True
-                    ):
-                        st.session_state.current_page = resposta["cta"].get("target", "offers")
-                        save_persistent_data()
-                        st.rerun()
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": json.dumps(resposta)
-            })
-            DatabaseService.save_message(
-                conn,
-                get_user_id(),
-                st.session_state.session_id,
-                "assistant",
-                json.dumps(resposta)
-            )
-
-            save_persistent_data()
-
-            st.markdown("""
-            <script>
-                window.scrollTo(0, document.body.scrollHeight);
-            </script>
-            """, unsafe_allow_html=True)
-
-# ======================
 # APLICAÇÃO PRINCIPAL
 # ======================
 def main():
@@ -1497,19 +1193,23 @@ def main():
 
     ChatService.initialize_session(conn)
 
+    # If user hasn't verified age, show verification and stop execution
     if not st.session_state.age_verified:
         UiService.age_verification()
         st.stop()
 
     UiService.setup_sidebar()
 
-    # only show initial call effect if connection_complete is False
+    # Only show initial call effect if connection_complete is False.
+    # The age_verification() now sets connection_complete = True and current_page = 'home',
+    # so after verification users are sent directly to the profile/home page.
     if not st.session_state.connection_complete:
         UiService.show_call_effect()
         st.session_state.connection_complete = True
         save_persistent_data()
         st.rerun()
 
+    # If chat hasn't started yet, show the profile "start conversation" layout.
     if not st.session_state.chat_started:
         col1, col2, col3 = st.columns([1,3,1])
         with col2:
@@ -1531,6 +1231,7 @@ def main():
                 st.rerun()
         st.stop()
 
+    # Page routing
     if st.session_state.current_page == "home":
         NewPages.show_home_page(conn)
     elif st.session_state.current_page == "gallery":
@@ -1549,5 +1250,4 @@ def main():
     save_persistent_data()
 
 if __name__ == "__main__":
-
     main()
